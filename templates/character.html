@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bleachdle-Character</title>
+    <!-- Favicon Links -->
+    <link rel="icon" type="image/png" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon-16x16.png" sizes="16x16" />
+    <link rel="icon" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon.ico" />
+    
+    <!-- Apple Touch Icon (for mobile devices) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/apple-touch-icon.png" />
+
+    <!-- Android Chrome Icons (for Android home screen) -->
+    <link rel="icon" type="image/png" sizes="192x192" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/android-chrome-512x512.png" />
+
+    <!-- Web Manifest (for PWA) -->
+    <link rel="manifest" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/site.webmanifest" />
+    <link rel="stylesheet" href="static/css/character.css">
+</head>
+<body class="fade-in">
+
+    <!-- Show a loader before the page is fully loaded -->
+    <div id="loader">Loading...</div>
+    <!-- Logo wrapped in anchor tag to go to main page -->
+    <a href="/" class="logo-wrapper">
+        <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/logo.png" class="logo" alt="Logo">
+    </a>
+
+    <!-- Circles with Images -->
+    <div class="circlee-wrapper">
+        <div class="middle-line"></div>
+
+        <a href="/character" class="circlee">
+            <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/character.png" alt="Character Icon">
+        </a>
+
+        <a href="/bankai" class="circlee">
+            <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/Bankai.png" alt="Bankai Icon">
+        </a>
+
+        <a href="/schrift" class="circlee">
+            <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/Schrift.png" alt="Schrift Icon">
+        </a>
+
+    </div>
+
+    
+    <div class="rectangle">
+        <p class="large-text">Guess today's Bleach Character</p>
+        <div class="empty-line"></div>
+        <p class="small-text">Type any Character to begin</p>
+    </div>
+
+    <div class="search-rectangle">
+        <input type="text" id="search-bar" placeholder="Type character name..." autocomplete="off">
+        <div id="search-results"></div>
+    </div>
+
+    <!-- Title squares row (with a wrapper around the title boxes) -->
+    <div class="attribute-row" id="attribute-titles" style="display: none;">
+        <div class="title-box-wrapper">
+            <div class="attribute-box">Name</div>
+            <div class="attribute-box">Gender</div>
+            <div class="attribute-box">Race</div>
+            <div class="attribute-box">Location</div>
+            <div class="attribute-box">Affiliation</div>
+            <div class="attribute-box">Division</div>
+            <div class="attribute-box">Height</div>
+            <div class="attribute-box">Arc</div>
+            <div class="attribute-box">Bankai<br>or<br>Vollstandig</div>
+        </div>
+    </div>
+
+    <!-- Previous picks section -->
+    <div class="previous-picks" id="previous-picks-list"></div>
+
+    <!-- Congratulations Popup -->
+    <div class="overlay" id="overlay"></div>
+    <div class="congratulations-rectangle" id="congratulations-rectangle">
+        <button class="close-btn" id="close-btn">&times;</button>
+        <p>Congratulations!</p>
+        <p class="congratulations-emoji">🎉🎉🎉</p>
+        <p id="refresh-text">Next Character Refresh In:</p>
+        <p id="countdown-timer" style="font-size: 24px; color: #FFD700;"></p> <!-- Timer will appear here -->
+    </div>
+
+    <script src="{{ url_for('static', filename='JavaScript/character.js') }}"></script>
+    
+    <script>
+        window.onload = function() {
+            document.body.classList.add('loaded');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+body {
+    background-image: url('https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/background.png');  
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow-y: scroll;
+}
+
+.logo-wrapper {
+    margin-top: 20px;
+    max-width: 3000px;
+    height: auto;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.logo-wrapper:hover {
+    transform: scale(1.05);
+}
+
+/* Button container */
+.button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: #17202a;
+    border-radius: 10px;
+    border: 2px solid #AB986D;
+    width: 400px;
+    height: 80px;
+    margin: 15px 0;
+    padding-left: 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+
+/* Circle fully outside */
+.circle {
+    position: absolute;
+    left: -90px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 70px;
+    height: 70px;
+    background-color: #17202a;
+    border: 3px solid #AB986D;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.circle img {
+    width: 50px; /* Adjust the size of the image */
+    height: 50px; /* Adjust the size of the image */
+    object-fit: contain; /* Ensure the image is contained within the circle */
+}
+
+/* Button text */
+.text {
+    margin-left: 10px;
+}
+
+.text h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #ffffff;
+}
+
+.text p {
+    margin: 5px 0 0;
+    font-size: 14px;
+    color: #a0a0a0;
+}
+
+/* Hover effect for buttons */
+.button:hover {
+    transform: scale(1.05); /* Enlarges the button when hovered */
+}
+
+/* Style for Character B Button */
+.character-b-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.2s ease; /* Add smooth transition here */
+    margin-top: 20px;
+}
+
+/* Ensure the image fits inside the button */
+.character-b-button img {
+    width: 550px;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Hover effect for Character B Button */
+.character-b-button:hover {
+    transform: scale(1.05); /* Apply scale transformation on the button itself */
+}
+
+
+/* Ensure body is hidden initially for smooth fade-in */
+body {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Optional: Customize the loading spinner if you want to show it */
+#loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    color: #333;
+    display: block;  /* Initially, the loader will be visible */
+}
+
+/* Show the page with a fade-in once loaded */
+body.loaded {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Hide loader once the page is loaded */
+body.loaded #loader {
+    display: none;
+}
+
+/* You can customize the styles of the loader to match your design */
+#loader {
+    font-size: 24px;
+    color: #333;
+}
+
+
+
+
+

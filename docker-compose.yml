@@ -1,0 +1,16 @@
+
+services:
+  web:
+    image: ilangimel/bleachdle-web-app # Specify the image if you're using a pre-built one instead of building it
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST=${DB_HOST}  # Points to the db service name defined below
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - API_URL=${API_URL}
+    command: ["flask", "run", "--host=0.0.0.0"]  # To make sure Flask listens on all interfaces
+
+
+

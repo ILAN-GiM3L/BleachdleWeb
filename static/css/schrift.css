@@ -1,0 +1,341 @@
+body {
+    background-image: url('https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/background.png');
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow-y: scroll;
+}
+
+.logo-wrapper {
+    margin-top: 20px; /* Adjust this value to control the spacing from the top */
+    max-width: 3000px; /* You can set a max width for the logo */
+    height: auto;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.logo-wrapper:hover {
+    transform: scale(1.05); /* Adds a hover effect on the logo */
+}
+
+
+.rectangle {
+    width: 360px;
+    height: auto;
+    background-color: #1F2328;
+    border-radius: 10px;
+    border: 2px solid #AB986D;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin-top: 20px;
+    padding: 20px;
+}
+
+.rectangle p {
+    margin: 0;
+}
+
+.large-text {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+.small-text {
+    font-size: 16px;
+    color: #979797;
+    font-weight: normal;
+}
+
+.empty-line {
+    height: 20px;
+}
+
+.search-rectangle {
+    width: 600px;
+    height: auto;
+    background-color: #1F2328;
+    border-radius: 30px;
+    border: 3px solid #AB986D;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin-top: 20px;
+    padding: 14px;
+}
+
+#search-bar {
+    width: 95%;
+    padding: 10px;
+    font-size: 24px;
+    border: 2px solid #AB986D;
+    border-radius: 20px;
+    background-color: #2E353D;
+    color: white;
+    outline: none;
+}
+
+#search-results {
+    position: relative;
+    top: 6px;
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    background-color: #1F2328;
+    border: 2px solid #AB986D;
+    border-radius: 20px;
+    box-sizing: border-box;
+    padding: 10px;
+}
+
+.result-item {
+    padding: 20px;
+    border-bottom: 2px solid #AB986D;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: white;
+    font-size: 28px;
+}
+
+.result-item img {
+    margin-right: 20px;
+    width: 60px;
+    height: 60px;
+}
+
+.result-item:hover {
+    background-color: #AB986D;
+}
+
+.previous-picks {
+    margin-top: 60px;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.previous-pick {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    margin-right: 20px;
+    flex-basis: 100%;  /* Ensure each pick takes up the full width and goes to a new line */
+}
+
+
+.name-box {
+    width: 500px; /* Adjust the width to make it a rectangle */
+    height: 100px; /* Keep the height shorter */
+    background-color: #2E353D;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px;
+    margin-top: -3px;
+    font-size: 36px; /* Adjust font size to make the name fit */
+    color: white;
+    border: 2px solid #AB986D;
+    text-align: center;
+    white-space: nowrap; /* Prevent the text from wrapping to a new line */
+    overflow: hidden; /* Hide overflow text if it doesn't fit */
+    padding: 0 10px; /* Add padding for spacing */
+}
+
+
+
+
+.name-box.green {
+    background-color: #4CAF50; /* Green for correct name */
+}
+
+.name-box.red {
+    background-color: #F44336; /* Red for incorrect name */
+}
+
+.character-image {
+    width: 100px;
+    height: 100px;
+    margin-right: 20px;
+    border-radius: 10px;
+}
+
+.pick-name {
+    margin-right: 40px;
+    font-size: 32px;
+    color: white;
+    font-weight: bold;
+}
+
+
+/* Congratulations Popup */
+.congratulations-rectangle {
+    width: 500px;
+    height: auto;
+    background-color: #1F2328;
+    border-radius: 40px;
+    border: 4px solid #AB986D;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    display: none; /* Initially hidden */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 40px;
+}
+
+.congratulations-rectangle p {
+    font-size: 36px;
+    font-weight: bold;
+    color: #FFD700;
+    margin: 0;
+}
+
+.congratulations-emoji {
+    font-size: 60px;
+}
+
+/* Close button */
+.close-btn {
+    background-color: transparent;
+    color: white;
+    border: none;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+/* Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none; /* Initially hidden */
+}
+
+.circlee {
+    width: 75px; /* Adjusted size for standalone circles */
+    height: 75px;
+    background-color: #17202a;
+    border: 3px solid #AB986D;
+    border-radius: 50%;
+    display: flex;
+    margin: 5px;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+    position: relative; /* To stack the circle on top of the line */
+    z-index: 2; /* Ensure circles appear above the line */
+}
+
+.circlee img {
+    width: 60%; /* Scales the image relative to the circle size */
+    height: 60%;
+    object-fit: contain;
+}
+
+.circlee:hover {
+    transform: scale(1.1); /* Add a hover effect for the circles */
+}
+
+.circlee-wrapper {
+    display: flex;
+    margin-left: 25px;  /* Adjust this value to move the entire row of title boxes to the right */
+}
+
+.middle-line {
+    width: 300px;
+    height: 0px;
+    background-color: #1F2328;
+    border-radius: 30px;
+    border: 2px solid #77baed;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin-top: 40px;
+    margin-left: -20px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1; 
+}
+
+/* Glowing effect for the active circle */
+.circlee.gold-glow {
+    border-color: #77baed;
+    box-shadow: 0 0 10px 5px #77baed;
+    transform: scale(1.1);
+}
+
+/* Gray border for inactive circles */
+.circlee.gray-border {
+    border-color: gray;
+}
+
+
+
+/* Ensure body is hidden initially for smooth fade-in */
+body {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Optional: Customize the loading spinner if you want to show it */
+#loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    color: #333;
+    display: block;  /* Initially, the loader will be visible */
+}
+
+/* Show the page with a fade-in once loaded */
+body.loaded {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Hide loader once the page is loaded */
+body.loaded #loader {
+    display: none;
+}
+
+/* You can customize the styles of the loader to match your design */
+#loader {
+    font-size: 24px;
+    color: #333;
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bleachdle</title>
+
+    <!-- Favicon Links -->
+    <link rel="icon" type="image/png" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon-32x32.png" sizes="32x32" />
+    <link rel="icon" type="image/png" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon-16x16.png" sizes="16x16" />
+    <link rel="icon" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/favicon.ico" />
+    
+    <!-- Apple Touch Icon (for mobile devices) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/apple-touch-icon.png" />
+
+    <!-- Android Chrome Icons (for Android home screen) -->
+    <link rel="icon" type="image/png" sizes="192x192" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/android-chrome-512x512.png" />
+
+    <!-- Web Manifest (for PWA) -->
+    <link rel="manifest" href="https://bleach-web.s3.eu-north-1.amazonaws.com/static/favicon/site.webmanifest" />
+    <link rel="stylesheet" href="static/css/main.css">
+</head>
+<body class="fade-in">
+
+    <!-- Show a loader before the page is fully loaded -->
+    <div id="loader">Loading...</div>
+
+    <!-- Logo wrapped in anchor tag to go to main page -->
+    <a href="/" class="logo-wrapper">
+        <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/logo.png" class="logo" alt="Logo">
+    </a>
+
+    <!-- New Button with Character B -->
+    <a href="/character" class="character-b-button">
+        <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/character-b.png" alt="Character B Icon">
+    </a>
+
+
+    <a href="/bankai" class="character-b-button">
+        <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/bankai-b.png" alt="Bankai B Icon">
+    </a>
+
+    <a href="/schrift" class="character-b-button">
+        <img src="https://bleach-web.s3.eu-north-1.amazonaws.com/static/images/schrift-b.png" alt="Bankai B Icon">
+    </a>
+
+    <script>
+        window.onload = function() {
+            document.body.classList.add('loaded');
+        };
+    </script>
+</body>
+</html>
+

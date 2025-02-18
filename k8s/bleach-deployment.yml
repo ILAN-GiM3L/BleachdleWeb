@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: bleachdle-deployment
+  labels:
+    app: Bleachdle
+spec: 
+  replicas: 1
+  selector: 
+    matchLabels: 
+      app: Bleachdle
+  template:
+    metadata: 
+      labels: 
+        app: Bleachdle
+    spec:  
+      containers: 
+        - name: bleachdle
+          image: ilangimel/bleachdle-web-app
+          ports:
+          - containerPort: 5000
+          env:
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: bleachdle-configmap
+                key: DB_HOST
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: bleachdle-secrets
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef: 
+                name: bleachdle-secrets
+                key: DB_PASSWORD
+          - name: DB_NAME
+            valueFrom:
+              configMapKeyRef:
+                name:  bleachdle-configmap
+                key: DB_NAME
+          - name: API_URL
+            valueFrom:
+              configMapKeyRef:
+                name: bleachdle-configmap
+                key: API_URL
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: bleachdle-service
+spec: 
+  selector:
+    app: Bleachdle
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+      nodePort: 32000
