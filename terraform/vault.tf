@@ -16,8 +16,6 @@ resource "helm_release" "vault" {
 server:
   dev:
     enabled: true
-    # Force the dev server to use "root" as the token 
-    # (instead of generating a random token).
     devToken: "root"
 
   ui:
@@ -41,10 +39,8 @@ EOF
   ]
 }
 
-# Wait for LB creation
 resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
-
   provisioner "local-exec" {
     command = "sleep 60"
   }
@@ -58,13 +54,11 @@ data "kubernetes_service" "vault_lb" {
   depends_on = [helm_release.vault]
 }
 
-# Poll the LB
 resource "null_resource" "vault_healthcheck" {
   depends_on = [
     null_resource.vault_helm_wait,
     data.kubernetes_service.vault_lb
   ]
-
   provisioner "local-exec" {
     command = <<EOT
 set -e
@@ -87,11 +81,13 @@ EOT
   }
 }
 
-# Output (Optional)
 output "vault_lb_ip" {
   value = data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
 }
 
+################################################################################
+# 1) Fix: mount path = "bleach" instead of "secret"
+################################################################################
 provider "vault" {
   address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
   token           = var.vault_token
@@ -99,18 +95,22 @@ provider "vault" {
 }
 
 resource "vault_mount" "kv" {
-  path = "secret"
+  path = "bleach"
   type = "kv-v2"
+
   depends_on = [null_resource.vault_healthcheck]
 }
 
+################################################################################
+# 2) Policy references new path "bleach/data/app"
+################################################################################
 resource "vault_policy" "bleachdle_policy" {
   name = "bleachdle-policy"
-  depends_on = [vault_mount.kv, null_resource.vault_healthcheck]
+  depends_on = [vault_mount.kv]
 
   policy = <<EOT
-path "secret/data/app" {
-  capabilities = ["read"]
+path "bleach/data/app" {
+  capabilities = ["read","create","update"]
 }
 EOT
 }
@@ -118,7 +118,10 @@ EOT
 resource "vault_auth_backend" "kubernetes" {
   type       = "kubernetes"
   path       = "kubernetes"
-  depends_on = [vault_mount.kv, null_resource.vault_healthcheck]
+  depends_on = [
+    vault_mount.kv,
+    null_resource.vault_healthcheck
+  ]
 }
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
@@ -134,13 +137,15 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
 
   depends_on = [
     vault_auth_backend.kubernetes,
-    vault_policy.bleachdle_policy,
-    null_resource.vault_healthcheck
+    vault_policy.bleachdle_policy
   ]
 }
 
+################################################################################
+# 3) vault_generic_endpoint references "bleach/data/app"
+################################################################################
 resource "vault_generic_endpoint" "app_secrets" {
-  path = "secret/data/app"
+  path = "bleach/data/app"
 
   data_json = jsonencode({
     db_host     = var.db_host
