@@ -1,8 +1,6 @@
 ###############################################################################
 # VAULT DEPLOYMENT AND CONFIGURATION
 ###############################################################################
-# Make sure you do NOT redeclare 'provider "google"' or 'provider "kubernetes"'
-# or 'data "google_client_config"' since they're in main.tf
 
 resource "kubernetes_namespace" "vault" {
   metadata {
@@ -50,6 +48,9 @@ resource "null_resource" "vault_init_wait" {
   }
 }
 
+###############################################################################
+# VAULT: KV ENGINE + K8S AUTH + POLICY
+###############################################################################
 resource "vault_mount" "kv" {
   path = "secret"
   type = "kv-v2"
@@ -61,9 +62,6 @@ resource "vault_auth_backend" "kubernetes" {
   depends_on = [helm_release.vault]
 }
 
-###############################################################################
-# FIXED: Use token_policies and token_ttl instead of policies and ttl
-###############################################################################
 resource "vault_policy" "bleachdle_policy" {
   name = "bleachdle-policy"
 
@@ -74,19 +72,22 @@ path "secret/data/app" {
 EOT
 }
 
+###############################################################################
+# FIXED: token_ttl must be a number in seconds. 
+###############################################################################
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name                        = "bleachdle-role"
   backend                          = vault_auth_backend.kubernetes.path
   bound_service_account_names      = ["bleachdle-sa"]
   bound_service_account_namespaces = ["default"]
 
-  # Instead of 'policies' => 'token_policies'
+  # 'token_policies' replaced 'policies'
   token_policies = [
     vault_policy.bleachdle_policy.name
   ]
 
-  # Instead of 'ttl' => 'token_ttl'
-  token_ttl = "1h"
+  # 'token_ttl' is numeric (seconds), e.g. 1 hour = 3600
+  token_ttl = 3600
 }
 
 resource "vault_generic_endpoint" "app_secrets" {
@@ -94,10 +95,10 @@ resource "vault_generic_endpoint" "app_secrets" {
   path       = "secret/data/app"
 
   data_json = jsonencode({
-    db_host     = var.db_host
-    db_user     = var.db_user
-    db_password = var.db_password
-    db_name     = var.db_name
+    db_host     = var.db_host,
+    db_user     = var.db_user,
+    db_password = var.db_password,
+    db_name     = var.db_name,
     api_url     = var.api_url
   })
 }
