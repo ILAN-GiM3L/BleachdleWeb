@@ -1,12 +1,8 @@
 ###############################################################################
 # VAULT DEPLOYMENT AND CONFIGURATION
 ###############################################################################
-# We REMOVE the duplicate provider "google", provider "kubernetes", and
-# data "google_client_config" lines. We also don't re-declare the helm provider.
-# All of those are now in main.tf.
-
-# We can still reference google_container_cluster.primary because
-# it is defined in gke_cluster.tf and is in the same Terraform state.
+# Make sure you do NOT redeclare 'provider "google"' or 'provider "kubernetes"'
+# or 'data "google_client_config"' since they're in main.tf
 
 resource "kubernetes_namespace" "vault" {
   metadata {
@@ -20,10 +16,6 @@ resource "helm_release" "vault" {
   repository = "https://helm.releases.hashicorp.com"
   chart      = "vault"
   version    = "0.24.0"
-
-  # The helm provider was declared in main.tf, so we don't need provider blocks here.
-  # If you want to specify an alias or anything else, you can do:
-  # provider = helm.<alias>  (if you had an aliased provider)
 
   values = [
     <<EOF
@@ -58,9 +50,6 @@ resource "null_resource" "vault_init_wait" {
   }
 }
 
-###############################################################################
-# VAULT SETUP: KUBERNETES AUTH & KV SECRETS
-###############################################################################
 resource "vault_mount" "kv" {
   path = "secret"
   type = "kv-v2"
@@ -72,6 +61,9 @@ resource "vault_auth_backend" "kubernetes" {
   depends_on = [helm_release.vault]
 }
 
+###############################################################################
+# FIXED: Use token_policies and token_ttl instead of policies and ttl
+###############################################################################
 resource "vault_policy" "bleachdle_policy" {
   name = "bleachdle-policy"
 
@@ -87,8 +79,14 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   backend                          = vault_auth_backend.kubernetes.path
   bound_service_account_names      = ["bleachdle-sa"]
   bound_service_account_namespaces = ["default"]
-  policies                         = [vault_policy.bleachdle_policy.name]
-  ttl                              = "1h"
+
+  # Instead of 'policies' => 'token_policies'
+  token_policies = [
+    vault_policy.bleachdle_policy.name
+  ]
+
+  # Instead of 'ttl' => 'token_ttl'
+  token_ttl = "1h"
 }
 
 resource "vault_generic_endpoint" "app_secrets" {
