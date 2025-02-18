@@ -1,5 +1,5 @@
 ###############################################################################
-# 1) Install Vault with a LoadBalancer
+# VAULT DEPLOYMENT WITH DEV MODE + LOADBALANCER
 ###############################################################################
 resource "kubernetes_namespace" "vault" {
   metadata {
@@ -17,41 +17,39 @@ resource "helm_release" "vault" {
   values = [
     <<EOF
 server:
-  ha:
+  dev:
     enabled: true
-    replicas: 3
-  dataStorage:
-    enabled: true
-    size: 5Gi
+    extraArgs:
+      # Wait for the dev server to become active (makes it respond to /v1/sys/health faster)
+      - "-dev-listen-address=0.0.0.0:8200"
+  # Dev mode uses an in-memory storage, ephemeral, auto-init, auto-unseal.
+  # Not recommended for production.
+
   ui:
     enabled: true
+
   service:
     type: LoadBalancer
     annotations:
-      # Make sure it's an external LB in GCP
       networking.gke.io/load-balancer-type: "External"
+
+  # readinessProbes, etc., won't do much here because dev mode is ephemeral,
+  # but let's keep them for consistency
   readinessProbe:
     enabled: true
     path: /v1/sys/health
-    initialDelaySeconds: 10
+    initialDelaySeconds: 5
     periodSeconds: 5
+
   livenessProbe:
     enabled: true
     path: /v1/sys/health
-  autoUnseal:
-    enabled: true
-    cloudProvider: gcp
-    gcpKms:
-      project: "${var.GCP_PROJECT}"
-      region: "${var.GCP_REGION}"
-      keyRing: "vault-key-ring"
-      cryptoKey: "vault-key"
+
 EOF
   ]
 }
 
-# Wait a moment for LB provisioning
-resource "null_resource" "vault_init_wait" {
+resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
 
   provisioner "local-exec" {
@@ -60,7 +58,7 @@ resource "null_resource" "vault_init_wait" {
 }
 
 ###############################################################################
-# 2) Discover the external IP of Vault LB
+# DISCOVER THE LB IP
 ###############################################################################
 data "kubernetes_service" "vault_lb" {
   metadata {
@@ -71,32 +69,25 @@ data "kubernetes_service" "vault_lb" {
 }
 
 ###############################################################################
-# 3) Poll the Vault LB until it responds
-#    This ensures the service is listening on port 8200.
+# WAIT FOR LB READINESS by polling /v1/sys/health
 ###############################################################################
 resource "null_resource" "vault_healthcheck" {
   depends_on = [
-    null_resource.vault_init_wait,
+    null_resource.vault_helm_wait,
     data.kubernetes_service.vault_lb
   ]
 
   provisioner "local-exec" {
-    # This script attempts a GET on /v1/sys/health up to 10 times
     command = <<EOT
 set -e
-echo "Polling Vault LB for readiness..."
+VAULT_IP="$(echo '${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}')"
 
-VAULT_IP="$(terraform output -raw vault_lb_ip || true)"
-if [ -z "$VAULT_IP" ]; then
-  # fallback if we haven't created an output yet
-  # we'll parse from the data source directly
-  VAULT_IP="$(echo '${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}')"
-fi
+echo "Polling Vault LB for readiness in dev mode..."
 
 for i in $(seq 1 10); do
   echo "Attempt $i checking: http://$VAULT_IP:8200/v1/sys/health"
   if curl -s -o /dev/null --connect-timeout 4 "http://$VAULT_IP:8200/v1/sys/health"; then
-    echo "Vault is responding. Good to go!"
+    echo "Vault dev server is responding. Good to go!"
     exit 0
   fi
   echo "Still not ready. Sleeping 10s..."
@@ -110,29 +101,23 @@ EOT
 }
 
 ###############################################################################
-# 4) Output the LB IP from the data source (optional)
+# OUTPUT LB IP (Optional)
 ###############################################################################
 output "vault_lb_ip" {
-  # Sometimes GCP LB only sets 'hostname' instead of 'ip'.
-  # If you see empty IP, try using 'hostname' below.
   value = data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
-  depends_on = [data.kubernetes_service.vault_lb]
 }
 
 ###############################################################################
-# 5) Now define the Vault provider, referencing that LB IP
+# CONFIGURE THE VAULT PROVIDER, referencing dev root token
 ###############################################################################
 provider "vault" {
-  address = format(
-    "http://%s:8200",
-    data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
-  )
+  address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
   token           = var.vault_token
   skip_tls_verify = true
 }
 
 ###############################################################################
-# 6) Vault resources, depends_on = vault_healthcheck
+# CREATE VAULT RESOURCES (KV, POLICIES, ETC.)
 ###############################################################################
 resource "vault_mount" "kv" {
   path = "secret"
@@ -140,24 +125,21 @@ resource "vault_mount" "kv" {
   depends_on = [null_resource.vault_healthcheck]
 }
 
-resource "vault_auth_backend" "kubernetes" {
-  type = "kubernetes"
-  path = "kubernetes"
-  depends_on = [
-    vault_mount.kv,
-    null_resource.vault_healthcheck
-  ]
-}
-
 resource "vault_policy" "bleachdle_policy" {
   name = "bleachdle-policy"
-  depends_on = [null_resource.vault_healthcheck]
+  depends_on = [vault_mount.kv, null_resource.vault_healthcheck]
 
   policy = <<EOT
 path "secret/data/app" {
   capabilities = ["read"]
 }
 EOT
+}
+
+resource "vault_auth_backend" "kubernetes" {
+  type       = "kubernetes"
+  path       = "kubernetes"
+  depends_on = [vault_mount.kv, null_resource.vault_healthcheck]
 }
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {

@@ -42,7 +42,7 @@ resource "random_id" "key_id" {
 }
 
 # ----------------------------------------------------------------------
-# KUBERNETES & HELM PROVIDERS
+# KUBERNETES and HELM providers
 # ----------------------------------------------------------------------
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
@@ -58,10 +58,7 @@ provider "helm" {
   }
 }
 
-# ----------------------------------------------------------------------
-#  We'll define the vault provider AFTER we discover the LB IP in vault.tf
-#  so that Jenkins/Terraform can connect externally.
-# ----------------------------------------------------------------------
+# We'll define the Vault provider in vault.tf after the LB IP is discovered
 
 output "gke_cluster_endpoint" {
   value = google_container_cluster.primary.endpoint
