@@ -1,6 +1,7 @@
 #########################################
-# 1 Install Vault with a LoadBalancer
+# vault.tf
 #########################################
+
 resource "kubernetes_namespace" "vault" {
   metadata {
     name = "vault"
@@ -27,9 +28,9 @@ server:
     enabled: true
   service:
     type: LoadBalancer
-    # If you want an external LB on GCP, add an annotation:
-    annotations:
-      networking.gke.io/load-balancer-type: "External"
+    # If you want an external LB on GCP, optionally add an annotation:
+    # annotations:
+    #   networking.gke.io/load-balancer-type: "External"
   autoUnseal:
     enabled: true
     cloudProvider: gcp
@@ -42,7 +43,7 @@ EOF
   ]
 }
 
-# We'll wait a bit for the pod to come up
+# Wait a bit for the pod/service to come up
 resource "null_resource" "vault_init_wait" {
   depends_on = [helm_release.vault]
   provisioner "local-exec" {
@@ -51,7 +52,7 @@ resource "null_resource" "vault_init_wait" {
 }
 
 #########################################
-# 2 Discover the external IP of Vault LB
+# Data resource: discover LB IP of "vault"
 #########################################
 data "kubernetes_service" "vault_lb" {
   metadata {
@@ -62,16 +63,16 @@ data "kubernetes_service" "vault_lb" {
 }
 
 #########################################
-# 3 Define the Vault provider referencing LB IP
+# Vault provider referencing LB IP
 #########################################
 provider "vault" {
-  address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer_ingress[0].ip)
+  address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
   token           = var.vault_token
   skip_tls_verify = true
 }
 
 #########################################
-# 4 Vault resources: KV, K8s auth, policy, role
+# Vault resources
 #########################################
 resource "vault_mount" "kv" {
   path = "secret"
@@ -81,10 +82,7 @@ resource "vault_mount" "kv" {
 resource "vault_auth_backend" "kubernetes" {
   type = "kubernetes"
   path = "kubernetes"
-  # depends_on ensures we have a working provider
-  depends_on = [
-    vault_mount.kv
-  ]
+  depends_on = [vault_mount.kv]
 }
 
 resource "vault_policy" "bleachdle_policy" {
@@ -103,11 +101,10 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   bound_service_account_names      = ["bleachdle-sa"]
   bound_service_account_namespaces = ["default"]
 
+  # Use token_policies and numeric token_ttl
   token_policies = [
     vault_policy.bleachdle_policy.name
   ]
-
-  # token_ttl is numeric (seconds)
   token_ttl = 3600
 }
 
