@@ -1,56 +1,64 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bleachdle-sa
+  namespace: default
+  labels:
+    app: Bleachdle
+---
 apiVersion: apps/v1
 kind: Deployment
-metadata: 
+metadata:
   name: bleachdle-deployment
   labels:
     app: Bleachdle
-spec: 
+spec:
   replicas: 1
-  selector: 
-    matchLabels: 
+  selector:
+    matchLabels:
       app: Bleachdle
   template:
-    metadata: 
-      labels: 
+    metadata:
+      labels:
         app: Bleachdle
-    spec:  
-      containers: 
+      annotations:
+        # Enable Vault Agent injection
+        vault.hashicorp.com/agent-inject: "true"
+        # The role that this service account is bound to in Vault
+        vault.hashicorp.com/role: "bleachdle-role"
+
+        # We want to pull from path "secret/data/app" in Vault KV v2
+        vault.hashicorp.com/agent-inject-secret-app: "secret/data/app"
+
+        # We create a small template that sets environment variables.
+        # Vault will write this file to /vault/secrets/app
+        vault.hashicorp.com/agent-inject-template-app: |
+          {{- with secret "secret/data/app" -}}
+          export DB_HOST="{{ .Data.data.db_host }}"
+          export DB_USER="{{ .Data.data.db_user }}"
+          export DB_PASSWORD="{{ .Data.data.db_password }}"
+          export DB_NAME="{{ .Data.data.db_name }}"
+          export API_URL="{{ .Data.data.api_url }}"
+          {{- end }}
+    spec:
+      serviceAccountName: bleachdle-sa
+      containers:
         - name: bleachdle
           image: ilangimel/bleachdle-web-app
           ports:
-          - containerPort: 5000
-          env:
-          - name: DB_HOST
-            valueFrom:
-              configMapKeyRef:
-                name: bleachdle-configmap
-                key: DB_HOST
-          - name: DB_USER
-            valueFrom:
-              secretKeyRef:
-                name: bleachdle-secrets
-                key: DB_USER
-          - name: DB_PASSWORD
-            valueFrom:
-              secretKeyRef: 
-                name: bleachdle-secrets
-                key: DB_PASSWORD
-          - name: DB_NAME
-            valueFrom:
-              configMapKeyRef:
-                name:  bleachdle-configmap
-                key: DB_NAME
-          - name: API_URL
-            valueFrom:
-              configMapKeyRef:
-                name: bleachdle-configmap
-                key: API_URL
+            - containerPort: 5000
+          # We override the default command/args so we can source the
+          # environment variables from the injected secrets file.
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - "source /vault/secrets/app && exec python app.py"
 ---
 apiVersion: v1
 kind: Service
-metadata: 
+metadata:
   name: bleachdle-service
-spec: 
+spec:
   selector:
     app: Bleachdle
   type: LoadBalancer

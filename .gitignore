@@ -38,3 +38,4 @@ favicon/
 bleach-secrets.yml
 bleach-configMap.yml
 AWS-EC2-DEPLOY.txt
+bleach-deployment.yml

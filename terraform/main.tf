@@ -27,7 +27,6 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
-# Needed by the kubernetes provider to fetch a token for authentication
 data "google_client_config" "default" {}
 
 provider "kubernetes" {
@@ -40,7 +39,6 @@ resource "random_id" "key_id" {
   byte_length = 8
 }
 
-# Outputs for debugging and verification
 output "gke_cluster_endpoint" {
   value = google_container_cluster.primary.endpoint
 }

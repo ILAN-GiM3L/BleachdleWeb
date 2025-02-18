@@ -1,0 +1,20 @@
+replicaCount: 1
+
+image:
+  repository: ilangimel/bleachdle-web-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 5000
+  targetPort: 5000
+  nodePort: 32000
+
+vault:
+  role: "bleachdle-role"
+  secretPath: "secret/data/app"
+
+serviceAccount:
+  create: true
+  name: "bleachdle-sa"

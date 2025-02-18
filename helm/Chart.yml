@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bleachdle
+description: A Helm chart for deploying the Bleachdle web application
+type: application
+version: 1.0.0
+appVersion: "1.0"

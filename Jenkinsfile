@@ -29,7 +29,7 @@ pipeline {
                     checkout([$class: 'GitSCM',
                         branches: [[name: '*/main']],  // Checkout the main branch
                         userRemoteConfigs: [[
-                            url: 'https://github.com/Ilan-Gimel/BleachdleWeb-git.git', // Replace with your repo URL
+                            url: 'https://github.com/ILAN-GiM3L/BleachdleWeb.git', // Replace with your repo URL
                             credentialsId: 'Github-cred'  // Make sure GitHub credentials are set in Jenkins
                         ]]
                     ])
@@ -59,7 +59,7 @@ pipeline {
         // stage('Build and Push Docker Image') {
         //     steps {
         //         script {
-        //             dir("${WORKSPACE}/BleachdleWeb") { // Ensure this is the correct directory
+        //             dir("${WORKSPACE}") { // Ensure this is the correct directory
         //                 // Create a new buildx builder (with multi-platform support)
         //                 sh '''
         //                     echo "Setting up Docker Buildx builder named Bleachbuild"
@@ -80,7 +80,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                     script {
-                        dir("${WORKSPACE}/BleachdleWeb/terraform") {
+                        dir("${WORKSPACE}/terraform") {
                                 sh '''
                                     echo "Using GCP credentials from $GCP_CREDENTIALS_FILE"
                                     export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
@@ -94,8 +94,40 @@ pipeline {
                     }
                 }
             }
-        }
 
+
+                // -----------------------------------------
+        // NEW STAGE: Deploy with Helm to GKE
+        // -----------------------------------------
+        stage('Helm Deploy') {
+            steps {
+                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                    script {
+                        dir("${WORKSPACE}/terraform") {
+                            // Retrieve the GKE cluster name from Terraform output
+                            sh """
+                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+                                gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
+                                gcloud config set project ${env.GCP_PROJECT}
+                                
+                                # Pull cluster name from Terraform outputs:
+                                CLUSTER_NAME=\$(terraform output -raw gke_cluster_name)
+                                
+                                echo "Cluster name from terraform: \$CLUSTER_NAME"
+
+                                # Get credentials for that cluster:
+                                gcloud container clusters get-credentials "\$CLUSTER_NAME" --region ${env.GCP_REGION}
+
+                                # Deploy the Helm chart (assuming your chart is in /helm)
+                                cd ../helm
+                                helm upgrade --install bleachdle . --namespace default
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     post {
         always {
