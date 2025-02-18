@@ -37,3 +37,16 @@ variable "api_url" {
   type        = string
   default     = "http://bleachdle-project.ey.r.appspot.com/"
 }
+
+variable "vault_address" {
+  description = "Vault address (HTTP or HTTPS)."
+  type        = string
+  default     = "http://vault.vault.svc.cluster.local:8200"
+}
+
+variable "vault_token" {
+  description = "Vault root/management token."
+  type        = string
+  sensitive   = true
+  default     = "root-token-or-whatever"
+}

@@ -21,6 +21,10 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.0"
     }
+    vault = {
+      source  = "hashicorp/vault"
+      version = "~> 3.14"
+    }
   }
 
   required_version = ">= 1.0.0"
@@ -39,6 +43,11 @@ data "google_client_config" "default" {}
 resource "random_id" "key_id" {
   byte_length = 8
 }
+
+# ----------------------------------------------------------------------
+# GKE cluster resources are in gke_cluster.tf
+# We reference them below for the kubernetes and helm providers
+# ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
 # PROVIDER: Kubernetes
@@ -60,6 +69,17 @@ provider "helm" {
     cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
     token                  = data.google_client_config.default.access_token
   }
+}
+
+# ----------------------------------------------------------------------
+# PROVIDER: Vault
+# We must specify at least 'address'. 
+# Typically, you also need a root or admin token (see var.vault_token).
+# ----------------------------------------------------------------------
+provider "vault" {
+  address         = var.vault_address
+  token           = var.vault_token
+  skip_tls_verify = true
 }
 
 output "gke_cluster_endpoint" {
