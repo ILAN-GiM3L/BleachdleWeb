@@ -17,11 +17,18 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
   }
 
   required_version = ">= 1.0.0"
 }
 
+# ----------------------------------------------------------------------
+# PROVIDERS
+# ----------------------------------------------------------------------
 provider "google" {
   project = var.GCP_PROJECT
   region  = var.GCP_REGION
@@ -35,6 +42,17 @@ provider "kubernetes" {
   token                  = data.google_client_config.default.access_token
 }
 
+provider "helm" {
+  kubernetes {
+    host                   = google_container_cluster.primary.endpoint
+    cluster_ca_certificate = google_container_cluster.primary.master_auth[0].cluster_ca_certificate
+    token                  = data.google_client_config.default.access_token
+  }
+}
+
+# ----------------------------------------------------------------------
+# SHARED RESOURCES
+# ----------------------------------------------------------------------
 resource "random_id" "key_id" {
   byte_length = 8
 }

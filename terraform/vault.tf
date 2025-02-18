@@ -1,31 +1,12 @@
 ###############################################################################
-# VAULT DEPLOYMENT AND CONFIGURATION USING HELM
+# VAULT DEPLOYMENT AND CONFIGURATION
 ###############################################################################
-provider "google" {
-  project = var.GCP_PROJECT
-  region  = var.GCP_REGION
-}
+# We REMOVE the duplicate provider "google", provider "kubernetes", and
+# data "google_client_config" lines. We also don't re-declare the helm provider.
+# All of those are now in main.tf.
 
-provider "kubernetes" {
-  host                   = google_container_cluster.primary.endpoint
-  cluster_ca_certificate = google_container_cluster.primary.master_auth[0].cluster_ca_certificate
-  token                  = data.google_client_config.default.access_token
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = google_container_cluster.primary.endpoint
-    cluster_ca_certificate = google_container_cluster.primary.master_auth[0].cluster_ca_certificate
-    token                  = data.google_client_config.default.access_token
-  }
-}
-
-data "google_client_config" "default" {}
-
-data "google_container_cluster" "primary" {
-  name     = google_container_cluster.primary.name
-  location = var.GCP_REGION
-}
+# We can still reference google_container_cluster.primary because
+# it is defined in gke_cluster.tf and is in the same Terraform state.
 
 resource "kubernetes_namespace" "vault" {
   metadata {
@@ -39,6 +20,10 @@ resource "helm_release" "vault" {
   repository = "https://helm.releases.hashicorp.com"
   chart      = "vault"
   version    = "0.24.0"
+
+  # The helm provider was declared in main.tf, so we don't need provider blocks here.
+  # If you want to specify an alias or anything else, you can do:
+  # provider = helm.<alias>  (if you had an aliased provider)
 
   values = [
     <<EOF
@@ -98,12 +83,12 @@ EOT
 }
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
-  role_name                           = "bleachdle-role"
-  backend                             = vault_auth_backend.kubernetes.path
-  bound_service_account_names         = ["bleachdle-sa"]
-  bound_service_account_namespaces    = ["default"]
-  policies                            = [vault_policy.bleachdle_policy.name]
-  ttl                                 = "1h"
+  role_name                        = "bleachdle-role"
+  backend                          = vault_auth_backend.kubernetes.path
+  bound_service_account_names      = ["bleachdle-sa"]
+  bound_service_account_namespaces = ["default"]
+  policies                         = [vault_policy.bleachdle_policy.name]
+  ttl                              = "1h"
 }
 
 resource "vault_generic_endpoint" "app_secrets" {
@@ -111,10 +96,10 @@ resource "vault_generic_endpoint" "app_secrets" {
   path       = "secret/data/app"
 
   data_json = jsonencode({
-    db_host     = var.db_host,
-    db_user     = var.db_user,
-    db_password = var.db_password,
-    db_name     = var.db_name,
+    db_host     = var.db_host
+    db_user     = var.db_user
+    db_password = var.db_password
+    db_name     = var.db_name
     api_url     = var.api_url
   })
 }
