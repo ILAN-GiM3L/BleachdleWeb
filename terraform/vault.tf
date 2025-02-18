@@ -1,6 +1,3 @@
-###############################################################################
-# VAULT DEPLOYMENT WITH DEV MODE + LOADBALANCER
-###############################################################################
 resource "kubernetes_namespace" "vault" {
   metadata {
     name = "vault"
@@ -19,11 +16,9 @@ resource "helm_release" "vault" {
 server:
   dev:
     enabled: true
-    extraArgs:
-      # Wait for the dev server to become active (makes it respond to /v1/sys/health faster)
-      - "-dev-listen-address=0.0.0.0:8200"
-  # Dev mode uses an in-memory storage, ephemeral, auto-init, auto-unseal.
-  # Not recommended for production.
+    # Force the dev server to use "root" as the token 
+    # (instead of generating a random token).
+    devToken: "root"
 
   ui:
     enabled: true
@@ -33,8 +28,6 @@ server:
     annotations:
       networking.gke.io/load-balancer-type: "External"
 
-  # readinessProbes, etc., won't do much here because dev mode is ephemeral,
-  # but let's keep them for consistency
   readinessProbe:
     enabled: true
     path: /v1/sys/health
@@ -44,11 +37,11 @@ server:
   livenessProbe:
     enabled: true
     path: /v1/sys/health
-
 EOF
   ]
 }
 
+# Wait for LB creation
 resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
 
@@ -57,9 +50,6 @@ resource "null_resource" "vault_helm_wait" {
   }
 }
 
-###############################################################################
-# DISCOVER THE LB IP
-###############################################################################
 data "kubernetes_service" "vault_lb" {
   metadata {
     name      = "vault"
@@ -68,9 +58,7 @@ data "kubernetes_service" "vault_lb" {
   depends_on = [helm_release.vault]
 }
 
-###############################################################################
-# WAIT FOR LB READINESS by polling /v1/sys/health
-###############################################################################
+# Poll the LB
 resource "null_resource" "vault_healthcheck" {
   depends_on = [
     null_resource.vault_helm_wait,
@@ -80,8 +68,7 @@ resource "null_resource" "vault_healthcheck" {
   provisioner "local-exec" {
     command = <<EOT
 set -e
-VAULT_IP="$(echo '${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}')"
-
+VAULT_IP="${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}"
 echo "Polling Vault LB for readiness in dev mode..."
 
 for i in $(seq 1 10); do
@@ -100,25 +87,17 @@ EOT
   }
 }
 
-###############################################################################
-# OUTPUT LB IP (Optional)
-###############################################################################
+# Output (Optional)
 output "vault_lb_ip" {
   value = data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
 }
 
-###############################################################################
-# CONFIGURE THE VAULT PROVIDER, referencing dev root token
-###############################################################################
 provider "vault" {
   address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
   token           = var.vault_token
   skip_tls_verify = true
 }
 
-###############################################################################
-# CREATE VAULT RESOURCES (KV, POLICIES, ETC.)
-###############################################################################
 resource "vault_mount" "kv" {
   path = "secret"
   type = "kv-v2"

@@ -39,8 +39,8 @@ variable "api_url" {
 }
 
 variable "vault_token" {
-  description = "Vault root/management token"
+  description = "Vault dev root token"
   type        = string
   sensitive   = true
-  default     = "some-root-token"
+  default     = "root"
 }

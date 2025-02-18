@@ -41,9 +41,6 @@ resource "random_id" "key_id" {
   byte_length = 8
 }
 
-# ----------------------------------------------------------------------
-# KUBERNETES and HELM providers
-# ----------------------------------------------------------------------
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
@@ -57,8 +54,6 @@ provider "helm" {
     token                  = data.google_client_config.default.access_token
   }
 }
-
-# We'll define the Vault provider in vault.tf after the LB IP is discovered
 
 output "gke_cluster_endpoint" {
   value = google_container_cluster.primary.endpoint
