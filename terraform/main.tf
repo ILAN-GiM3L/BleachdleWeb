@@ -30,9 +30,6 @@ terraform {
   required_version = ">= 1.0.0"
 }
 
-# ----------------------------------------------------------------------
-# PROVIDER: Google
-# ----------------------------------------------------------------------
 provider "google" {
   project = var.GCP_PROJECT
   region  = var.GCP_REGION
@@ -45,13 +42,7 @@ resource "random_id" "key_id" {
 }
 
 # ----------------------------------------------------------------------
-# GKE cluster resources are in gke_cluster.tf
-# We reference them below for the kubernetes and helm providers
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# PROVIDER: Kubernetes
-# We decode the cluster CA cert from google_container_cluster.primary.master_auth
+# KUBERNETES & HELM PROVIDERS
 # ----------------------------------------------------------------------
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
@@ -59,10 +50,6 @@ provider "kubernetes" {
   token                  = data.google_client_config.default.access_token
 }
 
-# ----------------------------------------------------------------------
-# PROVIDER: Helm
-# We pass in the same host, CA, and token info
-# ----------------------------------------------------------------------
 provider "helm" {
   kubernetes {
     host                   = "https://${google_container_cluster.primary.endpoint}"
@@ -72,15 +59,9 @@ provider "helm" {
 }
 
 # ----------------------------------------------------------------------
-# PROVIDER: Vault
-# We must specify at least 'address'. 
-# Typically, you also need a root or admin token (see var.vault_token).
+#  We'll define the vault provider AFTER we discover the LB IP in vault.tf
+#  so that Jenkins/Terraform can connect externally.
 # ----------------------------------------------------------------------
-provider "vault" {
-  address         = var.vault_address
-  token           = var.vault_token
-  skip_tls_verify = true
-}
 
 output "gke_cluster_endpoint" {
   value = google_container_cluster.primary.endpoint
