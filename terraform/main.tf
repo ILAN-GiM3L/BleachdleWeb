@@ -27,7 +27,7 @@ terraform {
 }
 
 # ----------------------------------------------------------------------
-# PROVIDERS
+# PROVIDER: Google
 # ----------------------------------------------------------------------
 provider "google" {
   project = var.GCP_PROJECT
@@ -36,24 +36,36 @@ provider "google" {
 
 data "google_client_config" "default" {}
 
+# ----------------------------------------------------------------------
+# GKE cluster resources are in gke_cluster.tf
+# We reference them below for the kubernetes and helm providers
+# ----------------------------------------------------------------------
+
 resource "random_id" "key_id" {
   byte_length = 8
 }
 
-# Ensure we use the GKE cluster's master_auth block:
+# ----------------------------------------------------------------------
+# PROVIDER: Kubernetes
+# We decode the cluster CA cert from google_container_cluster.primary.master_auth
+# ----------------------------------------------------------------------
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
   token                  = data.google_client_config.default.access_token
-  load_config_file       = false
+  # load_config_file = false  <-- REMOVED
 }
 
+# ----------------------------------------------------------------------
+# PROVIDER: Helm
+# We pass in the same host, CA, and token info
+# ----------------------------------------------------------------------
 provider "helm" {
   kubernetes {
     host                   = "https://${google_container_cluster.primary.endpoint}"
     cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
     token                  = data.google_client_config.default.access_token
-    load_config_file       = false
+    # load_config_file = false  <-- REMOVED
   }
 }
 
