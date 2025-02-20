@@ -16,16 +16,15 @@ spec:
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
-        # Refer to the same path specified in values.yml
         vault.hashicorp.com/agent-inject-secret-app: "{{ .Values.vault.secretPath }}"
-        vault.hashicorp.com/agent-inject-template-app: |
-          {{- with secret "{{ .Values.vault.secretPath }}" -}}
+        vault.hashicorp.com/agent-inject-template-app: |-
+          {{`{{- with secret "`}}{{ .Values.vault.secretPath }}{{`" -}}
           export DB_HOST="{{ .Data.data.db_host }}"
           export DB_USER="{{ .Data.data.db_user }}"
           export DB_PASSWORD="{{ .Data.data.db_password }}"
           export DB_NAME="{{ .Data.data.db_name }}"
           export API_URL="{{ .Data.data.api_url }}"
-          {{- end }}
+          {{`{{- end }}`}}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
