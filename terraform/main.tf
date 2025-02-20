@@ -65,3 +65,11 @@ output "gke_cluster_endpoint" {
 output "gke_cluster_name" {
   value = google_container_cluster.primary.name
 }
+
+output "gcp_project" {
+  value = var.GCP_PROJECT
+}
+
+output "gcp_region" {
+  value = var.GCP_REGION
+}

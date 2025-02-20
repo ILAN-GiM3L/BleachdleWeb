@@ -95,21 +95,35 @@ pipeline {
             }
         }
 
+        // Stage 4: Helm Deploy
         stage('Helm Deploy') {
             steps {
                 withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                     script {
                         dir("${WORKSPACE}/terraform") {
+                            // We retrieve the GCP project & region from Terraform outputs:
                             sh """
-                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
-                                gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
-                                gcloud config set project ${env.GCP_PROJECT}
-                                
+                                export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
+
+                                # Terraform outputs
+                                PROJECT_NAME=\$(terraform output -raw gcp_project)
+                                REGION_NAME=\$(terraform output -raw gcp_region)
                                 CLUSTER_NAME=\$(terraform output -raw gke_cluster_name)
+
+                                echo "Project name from terraform: \$PROJECT_NAME"
+                                echo "Region from terraform:       \$REGION_NAME"
                                 echo "Cluster name from terraform: \$CLUSTER_NAME"
 
-                                gcloud container clusters get-credentials "\$CLUSTER_NAME" --region ${env.GCP_REGION}
+                                echo "Activating service account"
+                                gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS
 
+                                echo "Setting GCP project to \$PROJECT_NAME"
+                                gcloud config set project "\$PROJECT_NAME"
+
+                                echo "Getting credentials for cluster \$CLUSTER_NAME in \$REGION_NAME"
+                                gcloud container clusters get-credentials "\$CLUSTER_NAME" --region "\$REGION_NAME"
+
+                                # Helm install
                                 cd ../helm
                                 helm upgrade --install bleachdle . --namespace default
                             """
