@@ -101,11 +101,10 @@ pipeline {
                 withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                     script {
                         dir("${WORKSPACE}/terraform") {
-                            // We retrieve the GCP project & region from Terraform outputs:
                             sh """
                                 export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
 
-                                # Terraform outputs
+                                # Retrieve GCP project & region from Terraform outputs
                                 PROJECT_NAME=\$(terraform output -raw gcp_project)
                                 REGION_NAME=\$(terraform output -raw gcp_region)
                                 CLUSTER_NAME=\$(terraform output -raw gke_cluster_name)
@@ -120,10 +119,14 @@ pipeline {
                                 echo "Setting GCP project to \$PROJECT_NAME"
                                 gcloud config set project "\$PROJECT_NAME"
 
+                                echo "Installing gke-gcloud-auth-plugin"
+                                # This plugin is required by GKE for client-go auth
+                                gcloud components install gke-gcloud-auth-plugin --quiet || true
+
                                 echo "Getting credentials for cluster \$CLUSTER_NAME in \$REGION_NAME"
                                 gcloud container clusters get-credentials "\$CLUSTER_NAME" --region "\$REGION_NAME"
 
-                                # Helm install
+                                # Deploy or upgrade the Helm chart to the cluster
                                 cd ../helm
                                 helm upgrade --install bleachdle . --namespace default
                             """
