@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Add /usr/local/bin to the PATH so Jenkins can access Docker
-        PATH = "/usr/local/bin:/opt/homebrew/bin:$PATH"
+        PATH = "/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin:$PATH"
         // Environment variables for Docker Hub, DB, and project details
         DOCKERHUB_REPO = 'ilangimel/bleachdle-web-app'
         DOCKERHUB_USERNAME = credentials('DOCKERHUB_USERNAME') // Secret for Docker Hub username
