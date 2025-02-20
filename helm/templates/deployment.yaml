@@ -15,8 +15,11 @@ spec:
         {{- include "bleachdle.selectorLabels" . | nindent 8 }}
       annotations:
         vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/tls-skip-verify: "true"  # <--- dev Vault, skip TLS
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
         vault.hashicorp.com/agent-inject-secret-app: "{{ .Values.vault.secretPath }}"
+
+        # ESCAPED Vault template to avoid Helm parse errors
         vault.hashicorp.com/agent-inject-template-app: |-
           {{ "{{" }}- with secret "{{ .Values.vault.secretPath }}" -}}
           export DB_HOST="{{ "{{" }} .Data.data.db_host {{ "}}" }}"

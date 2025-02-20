@@ -11,6 +11,7 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = "0.24.0"
 
+  # IMPORTANT: injector.enabled = true
   values = [
     <<EOF
 server:
@@ -35,6 +36,9 @@ server:
   livenessProbe:
     enabled: true
     path: /v1/sys/health
+
+injector:
+  enabled: true
 EOF
   ]
 }
@@ -87,9 +91,6 @@ output "vault_lb_ip" {
   value = data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
 }
 
-################################################################################
-# 1) Mount path = "bleach" instead of "secret"
-################################################################################
 provider "vault" {
   address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
   token           = var.vault_token
@@ -103,9 +104,6 @@ resource "vault_mount" "kv" {
   depends_on = [null_resource.vault_healthcheck]
 }
 
-################################################################################
-# 2) Policy references new path "bleach/data/app"
-################################################################################
 resource "vault_policy" "bleachdle_policy" {
   name       = "bleachdle-policy"
   depends_on = [vault_mount.kv]
@@ -145,14 +143,9 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   ]
 }
 
-################################################################################
-# 3) Provide the correct JSON structure for Vault KV v2
-#    (data must be nested under "data")
-################################################################################
 resource "vault_generic_endpoint" "app_secrets" {
   path = "bleach/data/app"
 
-  # Must nest secrets under "data" for KV v2
   data_json = jsonencode({
     data = {
       db_host     = var.db_host
