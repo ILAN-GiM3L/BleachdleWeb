@@ -16,6 +16,7 @@ spec:
       annotations:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
+        # Refer to the same path specified in values.yml
         vault.hashicorp.com/agent-inject-secret-app: "{{ .Values.vault.secretPath }}"
         vault.hashicorp.com/agent-inject-template-app: |
           {{- with secret "{{ .Values.vault.secretPath }}" -}}

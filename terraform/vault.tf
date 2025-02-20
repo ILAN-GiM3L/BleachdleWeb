@@ -41,6 +41,7 @@ EOF
 
 resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
+
   provisioner "local-exec" {
     command = "sleep 60"
   }
@@ -59,6 +60,7 @@ resource "null_resource" "vault_healthcheck" {
     null_resource.vault_helm_wait,
     data.kubernetes_service.vault_lb
   ]
+
   provisioner "local-exec" {
     command = <<EOT
 set -e
@@ -86,7 +88,7 @@ output "vault_lb_ip" {
 }
 
 ################################################################################
-# 1) Fix: mount path = "bleach" instead of "secret"
+# 1) Mount path = "bleach" instead of "secret"
 ################################################################################
 provider "vault" {
   address         = format("http://%s:8200", data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip)
@@ -105,7 +107,7 @@ resource "vault_mount" "kv" {
 # 2) Policy references new path "bleach/data/app"
 ################################################################################
 resource "vault_policy" "bleachdle_policy" {
-  name = "bleachdle-policy"
+  name       = "bleachdle-policy"
   depends_on = [vault_mount.kv]
 
   policy = <<EOT
@@ -116,8 +118,9 @@ EOT
 }
 
 resource "vault_auth_backend" "kubernetes" {
-  type       = "kubernetes"
-  path       = "kubernetes"
+  type = "kubernetes"
+  path = "kubernetes"
+
   depends_on = [
     vault_mount.kv,
     null_resource.vault_healthcheck
@@ -125,8 +128,9 @@ resource "vault_auth_backend" "kubernetes" {
 }
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
-  role_name                        = "bleachdle-role"
-  backend                          = vault_auth_backend.kubernetes.path
+  role_name = "bleachdle-role"
+  backend   = vault_auth_backend.kubernetes.path
+
   bound_service_account_names      = ["bleachdle-sa"]
   bound_service_account_namespaces = ["default"]
 
@@ -142,17 +146,21 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
 }
 
 ################################################################################
-# 3) vault_generic_endpoint references "bleach/data/app"
+# 3) Provide the correct JSON structure for Vault KV v2
+#    (data must be nested under "data")
 ################################################################################
 resource "vault_generic_endpoint" "app_secrets" {
   path = "bleach/data/app"
 
+  # Must nest secrets under "data" for KV v2
   data_json = jsonencode({
-    db_host     = var.db_host
-    db_user     = var.db_user
-    db_password = var.db_password
-    db_name     = var.db_name
-    api_url     = var.api_url
+    data = {
+      db_host     = var.db_host
+      db_user     = var.db_user
+      db_password = var.db_password
+      db_name     = var.db_name
+      api_url     = var.api_url
+    }
   })
 
   depends_on = [

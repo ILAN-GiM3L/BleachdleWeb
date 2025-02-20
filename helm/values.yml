@@ -13,7 +13,8 @@ service:
 
 vault:
   role: "bleachdle-role"
-  secretPath: "secret/data/app"
+  # IMPORTANT: Use the same path that Terraform configures (i.e., "bleach/data/app")
+  secretPath: "bleach/data/app"
 
 serviceAccount:
   create: true
