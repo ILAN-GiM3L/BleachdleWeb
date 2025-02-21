@@ -32,14 +32,30 @@ spec:
       initContainers:
         - name: configure-vault-auth
           image: hashicorp/vault
+          env:
+            - name: KUBERNETES_HOST
+              value: "https://kubernetes.default.svc.cluster.local"
           command:
             - "/bin/sh"
             - "-c"
             - |
+              echo "Fetching service account token..."
+              SA_JWT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              KUBE_CA_CERT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)
+              
+              if [ -z "$SA_JWT_TOKEN" ] || [ -z "$KUBE_CA_CERT" ]; then
+                echo "Missing required Kubernetes authentication data. Exiting..."
+                exit 1
+              fi
+              
+              echo "Logging into Vault..."
+              vault login -method=userpass username=root password=root
+              
+              echo "Configuring Vault Kubernetes auth backend..."
               vault write auth/kubernetes/config \
-                token_reviewer_jwt=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token) \
-                kubernetes_host=$KUBERNETES_HOST \
-                kubernetes_ca_cert=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt) \
+                token_reviewer_jwt="$SA_JWT_TOKEN" \
+                kubernetes_host="$KUBERNETES_HOST" \
+                kubernetes_ca_cert="$KUBE_CA_CERT" \
                 issuer="https://kubernetes.default.svc.cluster.local"
       containers:
         - name: {{ .Chart.Name }}
