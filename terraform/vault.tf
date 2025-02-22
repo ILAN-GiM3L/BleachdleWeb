@@ -11,6 +11,9 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = "0.24.0"
 
+  timeout = 600  # ⬅️ Increase timeout to 10 minutes (600 seconds)
+  wait    = true # ⬅️ Ensure Terraform waits for Vault to be ready before proceeding
+
   values = [
     <<EOF
 server:
@@ -46,7 +49,7 @@ resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
 
   provisioner "local-exec" {
-    command = "sleep 60"
+    command = "sleep 120"  # ⬅️ Ensures Helm has time to initialize completely
   }
 }
 
@@ -70,7 +73,7 @@ set -e
 VAULT_IP="${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}"
 echo "Polling Vault LB for readiness in dev mode..."
 
-for i in $(seq 1 10); do
+for i in $(seq 1 15); do
   echo "Attempt $i checking: http://$VAULT_IP:8200/v1/sys/health"
   if curl -s -o /dev/null --connect-timeout 4 "http://$VAULT_IP:8200/v1/sys/health"; then
     echo "Vault dev server is responding. Good to go!"
@@ -80,7 +83,7 @@ for i in $(seq 1 10); do
   sleep 10
 done
 
-echo "Vault did not become ready after 10 tries. Exiting..."
+echo "Vault did not become ready after 15 tries. Exiting..."
 exit 1
 EOT
   }
