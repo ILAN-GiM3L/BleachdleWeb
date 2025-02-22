@@ -11,8 +11,8 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = "0.24.0"
 
-  timeout = 600  # ⬅️ Increase timeout to 10 minutes (600 seconds)
-  wait    = true # ⬅️ Ensure Terraform waits for Vault to be ready before proceeding
+  timeout = 600
+  wait    = true
 
   values = [
     <<EOF
@@ -49,7 +49,7 @@ resource "null_resource" "vault_helm_wait" {
   depends_on = [helm_release.vault]
 
   provisioner "local-exec" {
-    command = "sleep 120"  # ⬅️ Ensures Helm has time to initialize completely
+    command = "sleep 120"
   }
 }
 
@@ -127,10 +127,22 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
-# ✅ **Fix: Get Service Account Secret Correctly**
-data "kubernetes_secret" "bleachdle_sa_secret" {
+# ✅ **Fix: Create Service Account Token Secret if missing**
+resource "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
     name      = "bleachdle-sa-token"
+    namespace = "default"
+    annotations = {
+      "kubernetes.io/service-account.name" = "bleachdle-sa"
+    }
+  }
+  type = "kubernetes.io/service-account-token"
+}
+
+# ✅ **Fix: Fetch Service Account Token Secret Correctly**
+data "kubernetes_secret" "bleachdle_sa_secret" {
+  metadata {
+    name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name
     namespace = "default"
   }
   depends_on = [vault_auth_backend.kubernetes]
