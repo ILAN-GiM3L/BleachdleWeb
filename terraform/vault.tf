@@ -11,7 +11,6 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = "0.24.0"
 
-  # IMPORTANT: injector.enabled = true
   values = [
     <<EOF
 server:
@@ -125,6 +124,16 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
+resource "vault_kubernetes_auth_backend_config" "kubernetes" {
+  backend            = vault_auth_backend.kubernetes.path
+  token_reviewer_jwt = file("/var/run/secrets/kubernetes.io/serviceaccount/token")
+  kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
+  kubernetes_ca_cert = file("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+  issuer             = "https://kubernetes.default.svc.cluster.local"
+
+  depends_on = [vault_auth_backend.kubernetes]
+}
+
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name = "bleachdle-role"
   backend   = vault_auth_backend.kubernetes.path
@@ -138,8 +147,7 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   token_ttl = 3600
 
   depends_on = [
-    vault_auth_backend.kubernetes,
-    vault_policy.bleachdle_policy
+    vault_kubernetes_auth_backend_config.kubernetes
   ]
 }
 
