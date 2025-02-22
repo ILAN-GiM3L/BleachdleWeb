@@ -17,7 +17,7 @@ spec:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/tls-skip-verify: "true"
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
-        vault.hashicorp.com/agent-inject-secret-app: "bleach/data/app"
+        vault.hashicorp.com/agent-inject-secret-app: "{{ .Values.vault.secretPath }}"
         vault.hashicorp.com/agent-inject-template-app: |
           {{`{{- with secret "bleach/data/app" -}}`}}
           export DB_HOST={{`{{ .Data.data.db_host }}`}}

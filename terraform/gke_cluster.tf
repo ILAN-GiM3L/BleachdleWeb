@@ -1,8 +1,8 @@
 resource "google_container_cluster" "primary" {
-  name               = "bleachdle-cluster-${random_id.key_id.hex}"
-  location           = var.GCP_REGION
+  name                    = "bleachdle-cluster-${random_id.key_id.hex}"
+  location                = var.GCP_REGION
   remove_default_node_pool = true
-  initial_node_count = 1
+  initial_node_count      = 1
 
   network    = "default"
   subnetwork = "default"

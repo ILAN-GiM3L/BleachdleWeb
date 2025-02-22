@@ -127,7 +127,8 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
-# ✅ **Fix: Create Service Account with a Token**
+# SERVICE ACCOUNT IS NOW MANAGED BY TERRAFORM
+
 resource "kubernetes_service_account" "bleachdle_sa" {
   metadata {
     name      = "bleachdle-sa"
@@ -149,7 +150,6 @@ resource "kubernetes_secret" "bleachdle_sa_secret" {
   depends_on = [kubernetes_service_account.bleachdle_sa]
 }
 
-# ✅ **Fix: Fetch Service Account Token Secret Correctly**
 data "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
     name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name

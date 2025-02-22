@@ -17,5 +17,5 @@ vault:
   secretPath: "bleach/data/app"
 
 serviceAccount:
-  create: true
+  create: false
   name: "bleachdle-sa"
