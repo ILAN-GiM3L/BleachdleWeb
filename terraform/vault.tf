@@ -127,16 +127,26 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
-# ✅ **Fix: Create Service Account Token Secret if missing**
+# ✅ **Fix: Create Service Account with a Token**
+resource "kubernetes_service_account" "bleachdle_sa" {
+  metadata {
+    name      = "bleachdle-sa"
+    namespace = "default"
+  }
+  automount_service_account_token = true
+}
+
 resource "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
     name      = "bleachdle-sa-token"
     namespace = "default"
     annotations = {
-      "kubernetes.io/service-account.name" = "bleachdle-sa"
+      "kubernetes.io/service-account.name" = kubernetes_service_account.bleachdle_sa.metadata[0].name
     }
   }
   type = "kubernetes.io/service-account-token"
+
+  depends_on = [kubernetes_service_account.bleachdle_sa]
 }
 
 # ✅ **Fix: Fetch Service Account Token Secret Correctly**
