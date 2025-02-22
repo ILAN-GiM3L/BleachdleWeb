@@ -124,11 +124,26 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
+# **🔹 NEW: Get Kubernetes Secret for Vault Authentication**
+data "kubernetes_service_account" "bleachdle_sa" {
+  metadata {
+    name      = "bleachdle-sa"
+    namespace = "default"
+  }
+}
+
+data "kubernetes_secret" "bleachdle_sa_secret" {
+  metadata {
+    name      = data.kubernetes_service_account.bleachdle_sa.default_secret_name
+    namespace = "default"
+  }
+}
+
 resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   backend            = vault_auth_backend.kubernetes.path
-  token_reviewer_jwt = file("/var/run/secrets/kubernetes.io/serviceaccount/token")
+  token_reviewer_jwt = data.kubernetes_secret.bleachdle_sa_secret.data["token"]
   kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
-  kubernetes_ca_cert = file("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+  kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
   issuer             = "https://kubernetes.default.svc.cluster.local"
 
   depends_on = [vault_auth_backend.kubernetes]
