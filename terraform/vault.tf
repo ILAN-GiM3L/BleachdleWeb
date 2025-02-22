@@ -124,19 +124,16 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
-# **🔹 NEW: Get Kubernetes Secret for Vault Authentication**
-data "kubernetes_service_account" "bleachdle_sa" {
-  metadata {
-    name      = "bleachdle-sa"
-    namespace = "default"
-  }
-}
-
+# **✅ NEW: Fix Service Account Secret Retrieval**
 data "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
-    name      = data.kubernetes_service_account.bleachdle_sa.default_secret_name
     namespace = "default"
   }
+
+  # Dynamically lookup the correct secret for the ServiceAccount
+  field_selector = "metadata.annotations.kubernetes.io/service-account.name=bleachdle-sa"
+
+  depends_on = [vault_auth_backend.kubernetes]
 }
 
 resource "vault_kubernetes_auth_backend_config" "kubernetes" {
