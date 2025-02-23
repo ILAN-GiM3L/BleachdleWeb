@@ -6,7 +6,13 @@ resource "kubernetes_cluster_role" "vault_auth" {
   rule {
     api_groups = [""]
     resources  = ["serviceaccounts", "secrets"]
-    verbs      = ["get", "list"]
+    verbs      = ["get", "list", "create", "update"]
+  }
+
+  rule {
+    api_groups = ["authentication.k8s.io"]
+    resources  = ["tokenreviews"]
+    verbs      = ["create"]
   }
 }
 

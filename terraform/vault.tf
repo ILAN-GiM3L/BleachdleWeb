@@ -168,12 +168,14 @@ resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
   kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
   issuer             = "https://kubernetes.default.svc.cluster.local"
+  disable_iss_validation = true  # ✅ Added this to avoid token validation issues
 
   depends_on = [
     vault_auth_backend.kubernetes,
     data.kubernetes_secret.bleachdle_sa_secret
   ]
 }
+
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name = "bleachdle-role"

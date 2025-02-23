@@ -56,6 +56,21 @@ spec:
                 policies=bleachdle-policy \
                 ttl=1h
       containers:
+        - name: vault-agent  # ✅ Added Vault Agent Container
+          image: "hashicorp/vault:1.13.1"
+          command: ["/bin/sh"]
+          args:
+            - "-ec"
+            - |
+              while ! curl -fsSL http://vault.vault.svc:8200/v1/sys/health; do
+                echo "Waiting for Vault..."
+                sleep 5
+              done
+              echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -65,3 +80,10 @@ spec:
           args:
             - "-c"
             - "source /vault/secrets/app && exec python app.py"
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+
+      volumes:
+        - name: vault-secrets
+          emptyDir: {}
