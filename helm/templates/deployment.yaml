@@ -56,7 +56,7 @@ spec:
                 policies=bleachdle-policy \
                 ttl=1h
       containers:
-        - name: vault-sidecar  # ✅ Keeping a separate sidecar for Vault
+        - name: vault-sidecar  
           image: "hashicorp/vault:1.13.1"
           command: ["/bin/sh"]
           args:
@@ -67,9 +67,7 @@ spec:
                 sleep 5
               done
               echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
-          volumeMounts:
-            - name: vault-sidecar-secrets  # ✅ Renamed to avoid duplicate volume mount
-              mountPath: /vault/secrets-sidecar
+          # 🚨 **No manual volumeMounts needed! Vault Injector already mounts secrets automatically!**
 
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -80,13 +78,6 @@ spec:
           args:
             - "-c"
             - "source /vault/secrets/app && exec python app.py"
-          volumeMounts:
-            - name: vault-app-secrets  # ✅ Using a separate volume for the app container
-              mountPath: /vault/secrets
+          # 🚨 **No manual volumeMounts needed! Vault Injector already mounts secrets automatically!**
 
-      volumes:
-        - name: vault-sidecar-secrets  # ✅ Separate volume for Vault sidecar
-          emptyDir: {}
-
-        - name: vault-app-secrets  # ✅ Separate volume for main app
-          emptyDir: {}
+      # 🚨 **NO volumes section needed because Vault Injector creates the necessary mounts!**
