@@ -128,8 +128,29 @@ resource "vault_auth_backend" "kubernetes" {
 }
 
 # ----------------------------------------------------------------------
-# NEWLY ADDED: Missing vault_kubernetes_auth_backend_config Resource
+# NEWLY ADDED: Missing Kubernetes Secret Data Resource
 # ----------------------------------------------------------------------
+data "kubernetes_secret" "bleachdle_sa_secret" {
+  metadata {
+    name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name
+    namespace = "default"
+  }
+  depends_on = [kubernetes_secret.bleachdle_sa_secret]
+}
+
+resource "kubernetes_secret" "bleachdle_sa_secret" {
+  metadata {
+    name      = "bleachdle-sa-token"
+    namespace = "default"
+    annotations = {
+      "kubernetes.io/service-account.name" = kubernetes_service_account.bleachdle_sa.metadata[0].name
+    }
+  }
+  type = "kubernetes.io/service-account-token"
+
+  depends_on = [kubernetes_service_account.bleachdle_sa]
+}
+
 resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   backend            = vault_auth_backend.kubernetes.path
   token_reviewer_jwt = data.kubernetes_secret.bleachdle_sa_secret.data["token"]
@@ -137,7 +158,10 @@ resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
   issuer             = "https://kubernetes.default.svc.cluster.local"
 
-  depends_on = [vault_auth_backend.kubernetes]
+  depends_on = [
+    vault_auth_backend.kubernetes,
+    data.kubernetes_secret.bleachdle_sa_secret
+  ]
 }
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
