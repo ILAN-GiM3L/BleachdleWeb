@@ -127,6 +127,19 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
+# ----------------------------------------------------------------------
+# NEWLY ADDED: Missing vault_kubernetes_auth_backend_config Resource
+# ----------------------------------------------------------------------
+resource "vault_kubernetes_auth_backend_config" "kubernetes" {
+  backend            = vault_auth_backend.kubernetes.path
+  token_reviewer_jwt = data.kubernetes_secret.bleachdle_sa_secret.data["token"]
+  kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
+  kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
+  issuer             = "https://kubernetes.default.svc.cluster.local"
+
+  depends_on = [vault_auth_backend.kubernetes]
+}
+
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name = "bleachdle-role"
   backend   = vault_auth_backend.kubernetes.path
