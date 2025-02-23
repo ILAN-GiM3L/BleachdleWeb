@@ -55,8 +55,25 @@ spec:
                 bound_service_account_namespaces=default \
                 policies=bleachdle-policy \
                 ttl=1h
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+
       containers:
-        - name: vault-agent  # ✅ Added Vault Agent Container
+        - name: bleachdle-web-app  # ✅ Unique name
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          command: ["/bin/sh"]
+          args:
+            - "-c"
+            - "source /vault/secrets/app && exec python app.py"
+          volumeMounts:
+            - name: vault-secrets
+              mountPath: /vault/secrets
+
+        - name: vault-agent  # ✅ Ensuring unique container name
           image: "hashicorp/vault:1.13.1"
           command: ["/bin/sh"]
           args:
@@ -71,19 +88,6 @@ spec:
             - name: vault-secrets
               mountPath: /vault/secrets
 
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - containerPort: {{ .Values.service.port }}
-          command: ["/bin/sh"]
-          args:
-            - "-c"
-            - "source /vault/secrets/app && exec python app.py"
-          volumeMounts:
-            - name: vault-secrets
-              mountPath: /vault/secrets
-
       volumes:
         - name: vault-secrets
-          emptyDir: {}
+          emptyDir: {}  # ✅ Ensuring vault-secrets is defined only once
