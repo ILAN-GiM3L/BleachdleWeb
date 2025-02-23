@@ -128,16 +128,19 @@ resource "vault_auth_backend" "kubernetes" {
 }
 
 # ----------------------------------------------------------------------
-# NEWLY ADDED: Missing Kubernetes Secret Data Resource
+# ADDED: Missing Kubernetes Service Account Resource
 # ----------------------------------------------------------------------
-data "kubernetes_secret" "bleachdle_sa_secret" {
+resource "kubernetes_service_account" "bleachdle_sa" {
   metadata {
-    name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name
+    name      = "bleachdle-sa"
     namespace = "default"
   }
-  depends_on = [kubernetes_secret.bleachdle_sa_secret]
+  automount_service_account_token = true
 }
 
+# ----------------------------------------------------------------------
+# ADDED: Missing Kubernetes Secret Resource
+# ----------------------------------------------------------------------
 resource "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
     name      = "bleachdle-sa-token"
@@ -149,6 +152,14 @@ resource "kubernetes_secret" "bleachdle_sa_secret" {
   type = "kubernetes.io/service-account-token"
 
   depends_on = [kubernetes_service_account.bleachdle_sa]
+}
+
+data "kubernetes_secret" "bleachdle_sa_secret" {
+  metadata {
+    name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name
+    namespace = "default"
+  }
+  depends_on = [kubernetes_secret.bleachdle_sa_secret]
 }
 
 resource "vault_kubernetes_auth_backend_config" "kubernetes" {
