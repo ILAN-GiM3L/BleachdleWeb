@@ -56,7 +56,7 @@ spec:
                 policies=bleachdle-policy \
                 ttl=1h
       containers:
-        - name: vault-sidecar  # ✅ Renamed to avoid duplicate container name
+        - name: vault-sidecar  # ✅ Keeping a separate sidecar for Vault
           image: "hashicorp/vault:1.13.1"
           command: ["/bin/sh"]
           args:
@@ -68,8 +68,8 @@ spec:
               done
               echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
           volumeMounts:
-            - name: vault-secrets
-              mountPath: /vault/secrets
+            - name: vault-sidecar-secrets  # ✅ Renamed to avoid duplicate volume mount
+              mountPath: /vault/secrets-sidecar
 
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -81,9 +81,12 @@ spec:
             - "-c"
             - "source /vault/secrets/app && exec python app.py"
           volumeMounts:
-            - name: vault-secrets
+            - name: vault-app-secrets  # ✅ Using a separate volume for the app container
               mountPath: /vault/secrets
 
       volumes:
-        - name: vault-secrets
-          emptyDir: {}  # ✅ Removed duplicate volume definitions
+        - name: vault-sidecar-secrets  # ✅ Separate volume for Vault sidecar
+          emptyDir: {}
+
+        - name: vault-app-secrets  # ✅ Separate volume for main app
+          emptyDir: {}
