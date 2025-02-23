@@ -27,7 +27,7 @@ spec:
           export API_URL={{`{{ .Data.data.api_url }}`}}
           {{`{{- end }}`}}
     spec:
-      serviceAccountName: {{ .Values.serviceAccount.name }}
+      serviceAccountName: bleachdle-sa
       initContainers:
         - name: configure-vault-auth
           image: hashicorp/vault

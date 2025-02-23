@@ -127,47 +127,6 @@ resource "vault_auth_backend" "kubernetes" {
   ]
 }
 
-# SERVICE ACCOUNT IS NOW MANAGED BY TERRAFORM
-
-resource "kubernetes_service_account" "bleachdle_sa" {
-  metadata {
-    name      = "bleachdle-sa"
-    namespace = "default"
-  }
-  automount_service_account_token = true
-}
-
-resource "kubernetes_secret" "bleachdle_sa_secret" {
-  metadata {
-    name      = "bleachdle-sa-token"
-    namespace = "default"
-    annotations = {
-      "kubernetes.io/service-account.name" = kubernetes_service_account.bleachdle_sa.metadata[0].name
-    }
-  }
-  type = "kubernetes.io/service-account-token"
-
-  depends_on = [kubernetes_service_account.bleachdle_sa]
-}
-
-data "kubernetes_secret" "bleachdle_sa_secret" {
-  metadata {
-    name      = kubernetes_secret.bleachdle_sa_secret.metadata[0].name
-    namespace = "default"
-  }
-  depends_on = [vault_auth_backend.kubernetes]
-}
-
-resource "vault_kubernetes_auth_backend_config" "kubernetes" {
-  backend            = vault_auth_backend.kubernetes.path
-  token_reviewer_jwt = data.kubernetes_secret.bleachdle_sa_secret.data["token"]
-  kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
-  kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
-  issuer             = "https://kubernetes.default.svc.cluster.local"
-
-  depends_on = [vault_auth_backend.kubernetes]
-}
-
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name = "bleachdle-role"
   backend   = vault_auth_backend.kubernetes.path
@@ -178,31 +137,13 @@ resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   token_policies = [
     vault_policy.bleachdle_policy.name
   ]
-  token_ttl = 3600
+
+  token_ttl              = 3600
+  token_max_ttl          = 7200
+  token_explicit_max_ttl = 0
+  token_period           = 0
 
   depends_on = [
     vault_kubernetes_auth_backend_config.kubernetes
-  ]
-}
-
-resource "vault_generic_endpoint" "app_secrets" {
-  path = "bleach/data/app"
-
-  data_json = jsonencode({
-    data = {
-      db_host     = var.db_host
-      db_user     = var.db_user
-      db_password = var.db_password
-      db_name     = var.db_name
-      api_url     = var.api_url
-    }
-  })
-
-  depends_on = [
-    vault_mount.kv,
-    vault_auth_backend.kubernetes,
-    vault_policy.bleachdle_policy,
-    vault_kubernetes_auth_backend_role.bleachdle_role,
-    null_resource.vault_healthcheck
   ]
 }
