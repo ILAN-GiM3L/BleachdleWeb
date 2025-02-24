@@ -117,6 +117,25 @@ path "bleach/data/app" {
 EOT
 }
 
+# ✅ **ADDING SECRET STORAGE AFTER POLICY IS READY**
+resource "vault_kv_secret_v2" "bleach_app_secrets" {
+  mount = vault_mount.kv.path
+  name  = "app"
+
+  data_json = jsonencode({
+    db_host     = var.db_host
+    db_user     = var.db_user
+    db_password = var.db_password
+    db_name     = var.db_name
+    api_url     = var.api_url
+  })
+
+  depends_on = [
+    vault_mount.kv,
+    vault_policy.bleachdle_policy
+  ]
+}
+
 resource "vault_auth_backend" "kubernetes" {
   type = "kubernetes"
   path = "kubernetes"
@@ -175,7 +194,6 @@ resource "vault_kubernetes_auth_backend_config" "kubernetes" {
     data.kubernetes_secret.bleachdle_sa_secret
   ]
 }
-
 
 resource "vault_kubernetes_auth_backend_role" "bleachdle_role" {
   role_name = "bleachdle-role"
