@@ -75,7 +75,7 @@ echo "Polling Vault LB for readiness in dev mode..."
 
 for i in $(seq 1 15); do
   echo "Attempt $i checking: http://$VAULT_IP:8200/v1/sys/health"
-  if curl -s -o /dev/null --connect-timeout 4 "http://$VAULT_IP:8200/v1/sys/health"; then
+  if wget -q --spider "http://$VAULT_IP:8200/v1/sys/health"; then
     echo "Vault dev server is responding. Good to go!"
     exit 0
   fi
@@ -117,7 +117,7 @@ path "bleach/data/app" {
 EOT
 }
 
-# ✅ **ADDING SECRET STORAGE AFTER POLICY IS READY**
+# ✅ **Fixing Secret Storage After Policy is Ready**
 resource "vault_kv_secret_v2" "bleach_app_secrets" {
   mount = vault_mount.kv.path
   name  = "app"
@@ -147,7 +147,7 @@ resource "vault_auth_backend" "kubernetes" {
 }
 
 # ----------------------------------------------------------------------
-# ADDED: Missing Kubernetes Service Account Resource
+# Kubernetes Service Account for Vault Authentication
 # ----------------------------------------------------------------------
 resource "kubernetes_service_account" "bleachdle_sa" {
   metadata {
@@ -157,9 +157,6 @@ resource "kubernetes_service_account" "bleachdle_sa" {
   automount_service_account_token = true
 }
 
-# ----------------------------------------------------------------------
-# ADDED: Missing Kubernetes Secret Resource
-# ----------------------------------------------------------------------
 resource "kubernetes_secret" "bleachdle_sa_secret" {
   metadata {
     name      = "bleachdle-sa-token"
@@ -187,7 +184,7 @@ resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   kubernetes_host    = "https://kubernetes.default.svc.cluster.local"
   kubernetes_ca_cert = data.kubernetes_secret.bleachdle_sa_secret.data["ca.crt"]
   issuer             = "https://kubernetes.default.svc.cluster.local"
-  disable_iss_validation = true  # ✅ Added this to avoid token validation issues
+  disable_iss_validation = true  
 
   depends_on = [
     vault_auth_backend.kubernetes,

@@ -62,12 +62,12 @@ spec:
           args:
             - "-ec"
             - |
-              while ! curl -fsSL http://vault.vault.svc:8200/v1/sys/health; do
+              apk add --no-cache curl
+              while ! wget -q --spider http://vault.vault.svc:8200/v1/sys/health; do
                 echo "Waiting for Vault..."
                 sleep 5
               done
               echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
-          # 🚨 **No manual volumeMounts needed! Vault Injector already mounts secrets automatically!**
 
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -77,7 +77,4 @@ spec:
           command: ["/bin/sh"]
           args:
             - "-c"
-            - "source /vault/secrets/app && exec python app.py"
-          # 🚨 **No manual volumeMounts needed! Vault Injector already mounts secrets automatically!**
-
-      # 🚨 **NO volumes section needed because Vault Injector creates the necessary mounts!**
+            - ". /vault/secrets/app && exec python app.py"
