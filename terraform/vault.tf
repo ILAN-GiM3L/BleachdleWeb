@@ -71,11 +71,14 @@ resource "null_resource" "vault_healthcheck" {
     command = <<EOT
 set -e
 VAULT_IP="${data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip}"
+echo "Waiting 30s before checking Vault readiness..."
+sleep 30  # <-- Add this line
+
 echo "Polling Vault LB for readiness in dev mode..."
 
 for i in $(seq 1 15); do
   echo "Attempt $i checking: http://$VAULT_IP:8200/v1/sys/health"
-  if curl -s -o /dev/null --connect-timeout 4 "http://$VAULT_IP:8200/v1/sys/health"; then
+  if wget -q --spider "http://$VAULT_IP:8200/v1/sys/health"; then
     echo "Vault dev server is responding. Good to go!"
     exit 0
   fi
@@ -88,6 +91,7 @@ exit 1
 EOT
   }
 }
+
 
 output "vault_lb_ip" {
   value = data.kubernetes_service.vault_lb.status[0].load_balancer[0].ingress[0].ip
