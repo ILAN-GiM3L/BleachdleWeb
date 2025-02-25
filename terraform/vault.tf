@@ -75,7 +75,7 @@ echo "Polling Vault LB for readiness in dev mode..."
 
 for i in $(seq 1 15); do
   echo "Attempt $i checking: http://$VAULT_IP:8200/v1/sys/health"
-  if wget -q --spider "http://$VAULT_IP:8200/v1/sys/health"; then
+  if curl -s -o /dev/null --connect-timeout 4 "http://$VAULT_IP:8200/v1/sys/health"; then
     echo "Vault dev server is responding. Good to go!"
     exit 0
   fi
