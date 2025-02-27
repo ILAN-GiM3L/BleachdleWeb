@@ -38,9 +38,4 @@ variable "api_url" {
   default     = "http://bleachdle-project.ey.r.appspot.com/"
 }
 
-variable "vault_token" {
-  description = "Vault dev root token"
-  type        = string
-  sensitive   = true
-  default     = "root"
-}
+

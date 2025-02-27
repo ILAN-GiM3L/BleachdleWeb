@@ -1,0 +1,58 @@
+# argocd-apps/vault-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+spec:
+  destination:
+    namespace: vault
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: "https://github.com/hashicorp/vault-helm.git"
+    targetRevision: "v0.24.0"  # pick a suitable version
+    chart: "vault"
+    helm:
+      releaseName: vault
+      values: |
+        server:
+          ha:
+            enabled: false
+            # For easy automation, set an initial root token (insecure for production).
+            initialRootToken: "root"
+
+          # Let’s store the GCP credentials as a secret named vault-gcp-creds
+          extraEnvironmentVars:
+            GOOGLE_APPLICATION_CREDENTIALS: /vault/config/gcp-creds.json
+
+          config: |
+            ui = true
+            listener "tcp" {
+              address = "0.0.0.0:8200"
+              tls_disable = 1
+            }
+            storage "file" {
+              path = "/vault/data"
+            }
+            seal "gcpckms" {
+              project     = "{{ .Values.server.extraEnvSecrets.GCP_PROJECT }}"
+              region      = "{{ .Values.server.extraEnvSecrets.GCP_REGION }}"
+              key_ring    = "vault-key-ring"
+              crypto_key  = "vault-key"
+              credentials = "/vault/config/gcp-creds.json"
+            }
+
+          # volumes
+          extraVolumes:
+            - name: vault-gcp-creds
+              secret:
+                secretName: vault-gcp-creds
+          extraVolumeMounts:
+            - name: vault-gcp-creds
+              mountPath: /vault/config
+              readOnly: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
