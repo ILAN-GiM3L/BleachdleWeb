@@ -10,7 +10,7 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    repoURL: "https://github.com/hashicorp/vault-helm.git"
+    repoURL: 'https://helm.releases.hashicorp.com'
     targetRevision: "v0.24.0"  # pick a suitable version
     chart: "vault"
     helm:
