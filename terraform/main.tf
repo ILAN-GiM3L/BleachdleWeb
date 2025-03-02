@@ -37,6 +37,13 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
+resource "google_project_service" "cloud_resource_manager" {
+  project            = var.GCP_PROJECT
+  service            = "cloudresourcemanager.googleapis.com"
+  disable_on_destroy = false
+}
+
+
 data "google_client_config" "default" {}
 
 # We still keep a random_id for the cluster naming
