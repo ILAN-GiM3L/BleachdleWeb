@@ -29,6 +29,9 @@ terraform {
   required_version = ">= 1.0.0"
 }
 
+###############################################################################
+# Google Provider
+###############################################################################
 provider "google" {
   project = var.GCP_PROJECT
   region  = var.GCP_REGION
