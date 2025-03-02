@@ -47,6 +47,9 @@ pipeline {
                         sh '''
                             echo "[Destroy Old] Attempting to destroy old cluster..."
                             export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
+                            gcloud config set project "bleachdle-web"
+
                             terraform init
                             terraform destroy -auto-approve || true
                         '''
@@ -64,6 +67,9 @@ pipeline {
                             echo "[Terraform Apply] Creating brand new cluster + KMS + SA..."
                             export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
 
+                            gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
+                            gcloud config set project "bleachdle-web"
+                            
                             terraform init
                             terraform plan -out=tfplan
                             terraform apply -auto-approve tfplan
