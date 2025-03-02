@@ -58,7 +58,7 @@ resource "google_kms_key_ring" "vault_key_ring" {
   location = var.GCP_REGION
   project  = var.GCP_PROJECT
 }
-# [CHANGE] Replaced the null_resource that used local-exec to check and create the KMS key ring.
+# [CHANGE] Replaced the null_resource block that used local-exec for the KMS key ring.
 
 ##################################################
 # Declarative creation of KMS Crypto Key if missing
@@ -70,7 +70,7 @@ resource "google_kms_crypto_key" "vault_crypto_key" {
   # If you want a rotation period (e.g. 90 days), uncomment the following line:
   # rotation_period = "7776000s"
 }
-# [CHANGE] Replaced the null_resource that checked and created the KMS crypto key.
+# [CHANGE] Replaced the null_resource block that created the crypto key.
 
 ##################################################
 # Declarative creation of Vault SA if missing
@@ -80,7 +80,7 @@ resource "google_service_account" "vault_sa" {
   display_name = "Vault Auto Unseal Service Account"
   project      = var.GCP_PROJECT
 }
-# [CHANGE] Replaced the null_resource that used a shell script to create the SA.
+# [CHANGE] Replaced the null_resource block that checked and created the SA.
 
 ##################################################
 # Declarative binding of SA -> KMS Encrypter/Decrypter role
@@ -90,7 +90,9 @@ resource "google_project_iam_member" "vault_sa_kms_bind" {
   member  = "serviceAccount:${google_service_account.vault_sa.email}"
   role    = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
 }
-# [CHANGE] Replaced the null_resource that conditionally bound the IAM role.
+# [CHANGE] Replaced the null_resource block that conditionally added the IAM binding.
+# NOTE: The import ID for this resource now must use the format:
+# projects/bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/members/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com
 
 ##################################################
 # Declarative creation of SA key
@@ -100,11 +102,11 @@ resource "google_service_account_key" "vault_sa_key" {
 
   lifecycle {
     create_before_destroy = true
-    ignore_changes        = [private_key, public_key]
+    # [CHANGE] Removed ignore_changes for private_key/public_key because these are computed.
   }
 }
 # [CHANGE] Replaced the null_resource that created a local file and the data "local_file" block.
-# The output below now directly uses this resource.
+# The output below now directly references this native resource.
 
 ###############################################################################
 # KUBERNETES & HELM providers

@@ -11,7 +11,7 @@ variable "GCP_REGION" {
 variable "db_host" {
   description = "Host address for the MySQL database"
   type        = string
-  default     = "34.159.63.105"
+  default     = "35.246.242.114"
 }
 
 variable "db_user" {

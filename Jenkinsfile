@@ -78,20 +78,15 @@ pipeline {
                             terraform import -input=false google_service_account.vault_sa projects/bleachdle-web/serviceAccounts/vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
                             
                             echo "[Import] Importing IAM Binding..."
-                            terraform import -input=false google_project_iam_member.vault_sa_kms_bind projects/bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
+                            terraform import -input=false google_project_iam_member.vault_sa_kms_bind projects/bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/members/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
                             
-                            echo "[Import] Importing Vault SA Key (if exists)..."
-                            KEY_ID=$(gcloud iam service-accounts keys list --iam-account="vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com" --project="bleachdle-web" --format="value(name)" | head -n 1 | awk -F'/' '{print $NF}')
-                            if [ -n "$KEY_ID" ]; then
-                                terraform import -input=false google_service_account_key.vault_sa_key projects/bleachdle-web/serviceAccounts/vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com/keys/$KEY_ID || true
-                            else
-                                echo "No existing SA key found, will be created by Terraform."
-                            fi
+                            echo "[Import] Skipping SA Key import (resource does not support import)."
                         '''
                     }
                 }
             }
         }
+
 
         // 5) Terraform Apply to create GKE + KMS + Vault SA
         stage('Terraform Apply') {
@@ -233,11 +228,11 @@ pipeline {
                                 kubectl -n vault exec vault-0 -- vault login token=root
                                 
                                 kubectl -n vault exec vault-0 -- vault kv put bleach/data/app \
-                                  db_host="34.165.72.240" \
+                                  db_host="35.246.242.114" \
                                   db_user="root" \
                                   db_password="GeverYozem10072003" \
                                   db_name="Bleach_DB" \
-                                  api_url="http://bleachdle-project.ey.r.appspot.com/"
+                                  api_url="https://bleachdle-web.oa.r.appspot.com/"
                                 
                                 echo "[Populate Vault] Secrets set. Bleachdle pods can now pull them."
                             '''
