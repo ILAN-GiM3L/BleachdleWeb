@@ -1,6 +1,6 @@
 variable "GCP_PROJECT" {
   description = "Google Cloud Project ID"
-  default     = "bleachdle-project"
+  default     = "bleachdle-web"
 }
 
 variable "GCP_REGION" {
