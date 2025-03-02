@@ -11,7 +11,7 @@ variable "GCP_REGION" {
 variable "db_host" {
   description = "Host address for the MySQL database"
   type        = string
-  default     = "34.165.72.240"
+  default     = "34.159.63.105"
 }
 
 variable "db_user" {
@@ -35,7 +35,7 @@ variable "db_name" {
 variable "api_url" {
   description = "API endpoint that your Flask app calls"
   type        = string
-  default     = "http://bleachdle-project.ey.r.appspot.com/"
+  default     = "https://bleachdle-web.oa.r.appspot.com"
 }
 
 
