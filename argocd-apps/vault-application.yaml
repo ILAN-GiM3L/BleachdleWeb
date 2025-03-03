@@ -1,4 +1,3 @@
-# argocd-apps/vault-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,14 +17,12 @@ spec:
       values: |
         server:
           ha:
-            enabled: false
+            enabled: true
+            replicas: 1
             # For easy automation, set an initial root token (insecure for production).
             initialRootToken: "root"
-
-          # Let’s store the GCP credentials as a secret named vault-gcp-creds
           extraEnvironmentVars:
             GOOGLE_APPLICATION_CREDENTIALS: /vault/config/gcp-creds.json
-
           config: |
             ui = true
             listener "tcp" {
@@ -42,8 +39,6 @@ spec:
               crypto_key  = "vault-key"
               credentials = "/vault/config/gcp-creds.json"
             }
-
-          # volumes
           extraVolumes:
             - name: vault-gcp-creds
               secret:

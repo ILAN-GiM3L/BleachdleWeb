@@ -78,7 +78,8 @@ pipeline {
                             terraform import -input=false google_service_account.vault_sa projects/bleachdle-web/serviceAccounts/vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
                             
                             echo "[Import] Importing IAM Binding..."
-                            terraform import -input=false google_project_iam_member.vault_sa_kms_bind projects/bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/members/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
+                            terraform import -input=false google_project_iam_member.vault_sa_kms_bind bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
+
                             
                             echo "[Import] Skipping SA Key import (resource does not support import)."
                         '''
