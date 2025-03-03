@@ -36,8 +36,8 @@ spec:
               path = "/vault/data"
             }
             seal "gcpckms" {
-              project     = "{{ .Values.server.extraEnvSecrets.GCP_PROJECT }}"
-              region      = "{{ .Values.server.extraEnvSecrets.GCP_REGION }}"
+              project     = "bleachdle-web"
+              region      = "us-central1"
               key_ring    = "vault-key-ring"
               crypto_key  = "vault-key"
               credentials = "/vault/config/gcp-creds.json"
