@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: 'https://helm.releases.hashicorp.com'
-    targetRevision: "v0.24.0"  # pick a suitable version
+    targetRevision: "v0.33.0"  # Updated to a newer version with improved auto-unseal support
     chart: "vault"
     helm:
       releaseName: vault
@@ -30,7 +30,7 @@ spec:
             ui = true
             listener "tcp" {
               address = "0.0.0.0:8200"
-              tls_disable = 1
+              tls_disable = true
             }
             storage "file" {
               path = "/vault/data"
