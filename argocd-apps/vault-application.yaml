@@ -21,11 +21,10 @@ spec:
             replicas: 1
             # For easy automation, set an initial root token (insecure for production).
             initialRootToken: "root"
-          extraEnvSecrets:
+          extraEnvironmentVars:
             GCP_PROJECT: "bleachdle-web"
             GCP_REGION: "us-central1"
-          extraEnvironmentVars:
-            GOOGLE_APPLICATION_CREDENTIALS: /vault/config/gcp-creds.json
+            GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
           config: |
             ui = true
             listener "tcp" {
