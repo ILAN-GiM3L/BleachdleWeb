@@ -81,7 +81,6 @@ pipeline {
                                 echo "[Argo CD] Installing Argo CD on 'argocd-cluster'..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
 
-                                REGION_NAME=$(terraform output -raw gcp_region)
                                 ARGO_CLUSTER=$(terraform output -raw argocd_cluster_name)
 
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
