@@ -112,13 +112,6 @@ resource "google_service_account_key" "vault_sa_key" {
 ###############################################################################
 # Outputs
 ###############################################################################
-output "gke_cluster_endpoint" {
-  value = google_container_cluster.primary.endpoint
-}
-
-output "gke_cluster_name" {
-  value = google_container_cluster.primary.name
-}
 
 output "gcp_project" {
   value = var.GCP_PROJECT
