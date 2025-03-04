@@ -4,7 +4,7 @@
 terraform {
   backend "gcs" {
     bucket = "bleachdle-terraform-state-bucket"
-    prefix = "terraform/state"
+    prefix = "terraform/argo/state"
   }
 
   required_providers {

@@ -3,23 +3,25 @@ pipeline {
 
     environment {
         PATH = "/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin:$PATH"
+        
+        // Jenkins environment variables for GCP
+        GCP_PROJECT = 'bleachdle-web'
+        GCP_REGION  = 'us-central1'
 
-        DOCKERHUB_REPO = 'ilangimel/bleachdle-web-app'
+        DOCKERHUB_REPO     = 'ilangimel/bleachdle-web-app'
         DOCKERHUB_USERNAME = credentials('DOCKERHUB_USERNAME')
         DOCKERHUB_PASSWORD = credentials('DOCKERHUB_PASSWORD')
-        IMAGE_NAME = 'ilangimel/bleachdle-web-app'
-        VERSION = "${BUILD_NUMBER}"
+        IMAGE_NAME         = 'ilangimel/bleachdle-web-app'
+        VERSION            = "${BUILD_NUMBER}"
     }
 
     stages {
-        // 1) Clean Workspace
         stage('Clean Workspace') {
             steps {
                 cleanWs()
             }
         }
 
-        // 2) Clone Repository
         stage('Clone Repository') {
             steps {
                 script {
@@ -28,39 +30,36 @@ pipeline {
                         branches: [[name: '*/main']],
                         userRemoteConfigs: [[
                             url: 'https://github.com/ILAN-GiM3L/BleachdleWeb.git',
-                            credentialsId: 'Github-cred'  // or your GitHub credentials for private repo
+                            credentialsId: 'Github-cred'
                         ]]
                     ])
                 }
             }
         }
 
-        // 3) Check/Create Argo CD Cluster (Persistent)
+        // 1) Create/Check ArgoCD cluster (persistent)
         stage('Check/Create ArgoCD Cluster') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
+                        dir("terraform/argo") {
                             sh '''
-                                echo "[Check ArgoCD Cluster] Checking if argocd-cluster exists..."
-
+                                echo "[Argo] Checking if 'argocd-cluster' exists..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config set project "bleachdle-web"
+                                gcloud config set project "$GCP_PROJECT"
                                 terraform init
 
-                                # We'll try to describe the cluster. If successful, it exists; if error, it doesn't.
                                 set +e
-                                gcloud container clusters describe argocd-cluster --region us-central1 > /dev/null 2>&1
+                                gcloud container clusters describe argocd-cluster --region "$GCP_REGION" > /dev/null 2>&1
                                 CLUSTER_EXISTS=$?
                                 set -e
 
                                 if [ $CLUSTER_EXISTS -eq 0 ]; then
-                                  echo "[Check ArgoCD Cluster] 'argocd-cluster' ALREADY exists. Skipping create."
+                                  echo "[Argo] 'argocd-cluster' ALREADY exists. Skip creating."
                                 else
-                                  echo "[Check ArgoCD Cluster] 'argocd-cluster' does NOT exist. Creating via Terraform..."
-
-                                  # Only create ArgoCD cluster resources
+                                  echo "[Argo] 'argocd-cluster' does NOT exist. Creating..."
                                   terraform plan -out=tfplan -target=google_container_cluster.argocd -target=google_container_node_pool.argocd_nodes
                                   terraform apply -auto-approve tfplan
                                 fi
@@ -71,54 +70,73 @@ pipeline {
             }
         }
 
-        // 4) Install & Expose Argo CD (No extra existence checks here!)
-        stage('Install & Expose Argo CD') {
+        // 2) Import KMS/SA in the "argo" project if needed
+        stage('Import KMS & SA') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
+                        dir("terraform/argo") {
                             sh '''
-                                echo "[Argo CD] Installing Argo CD on 'argocd-cluster'..."
+                                echo "[Argo] Importing KMS & SA if they exist..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
 
-                                ARGO_CLUSTER=$(terraform output -raw argocd_cluster_name)
+                                gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
+                                gcloud config set project "$GCP_PROJECT"
+                                terraform init
+
+                                terraform import google_kms_key_ring.vault_key_ring     projects/$GCP_PROJECT/locations/$GCP_REGION/keyRings/vault-key-ring || true
+                                terraform import google_kms_crypto_key.vault_crypto_key projects/$GCP_PROJECT/locations/$GCP_REGION/keyRings/vault-key-ring/cryptoKeys/vault-key || true
+                                terraform import google_service_account.vault_sa        projects/$GCP_PROJECT/serviceAccounts/vault-unseal-sa@$GCP_PROJECT.iam.gserviceaccount.com || true
+                                terraform import google_project_iam_member.vault_sa_kms_bind $GCP_PROJECT/roles/cloudkms.cryptoKeyEncrypterDecrypter/serviceAccount:vault-unseal-sa@$GCP_PROJECT.iam.gserviceaccount.com || true
+
+                                # SA Key doesn't support import
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3) Install & Expose Argo CD
+        stage('Install & Expose ArgoCD') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        dir("terraform/argo") {
+                            sh '''
+                                echo "[Argo] Installing Argo CD on 'argocd-cluster'..."
+                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
 
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config set project "bleachdle-web"
+                                gcloud config set project "$GCP_PROJECT"
                                 gcloud components install gke-gcloud-auth-plugin --quiet || true
 
-                                # If for some reason the cluster doesn't exist, this will fail
-                                gcloud container clusters get-credentials "$ARGO_CLUSTER" --region us-central1
+                                ARGO_CLUSTER=$(terraform output -raw argocd_cluster_name)
+                                gcloud container clusters get-credentials "$ARGO_CLUSTER" --region "$GCP_REGION"
 
-                                # Create the argocd namespace & apply Argo CD manifests
+                                # Create namespace, apply ArgoCD
                                 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
                                 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-                                echo "[Argo CD] Waiting for argocd-server to be ready..."
+                                echo "[Argo] Patching 'argocd-server' to LoadBalancer..."
                                 kubectl rollout status deploy/argocd-server -n argocd --timeout=180s || true
-
-                                echo "[Argo CD] Patching argocd-server service to type=LoadBalancer..."
                                 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
-                                echo "[Argo CD] Waiting for the LoadBalancer external IP..."
+                                echo "[Argo] Waiting for external IP..."
                                 COUNT=0
                                 EXTERNAL_IP=""
                                 while [ $COUNT -lt 30 ]; do
-                                  EXTERNAL_IP=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null)
+                                  EXTERNAL_IP=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
                                   if [ -n "$EXTERNAL_IP" ]; then
-                                    echo "[Argo CD] External IP found: $EXTERNAL_IP"
-                                    echo "Access Argo CD UI at: http://$EXTERNAL_IP"
+                                    echo "[Argo] Found IP: $EXTERNAL_IP"
+                                    echo "[Argo] Access at: http://$EXTERNAL_IP"
                                     break
                                   else
-                                    echo "Waiting for LoadBalancer IP..."
+                                    echo "Waiting for IP..."
                                     sleep 10
                                     COUNT=$((COUNT+1))
                                   fi
                                 done
-
-                                if [ -z "$EXTERNAL_IP" ]; then
-                                  echo "ERROR: Timed out waiting for ArgoCD LoadBalancer IP."
-                                fi
                             '''
                         }
                     }
@@ -126,30 +144,30 @@ pipeline {
             }
         }
 
-        // 5) Destroy Old Bleachdle Ephemeral Cluster if it exists
+        // 4) Destroy Old Bleachdle Ephemeral cluster if it exists
         stage('Destroy Old Bleachdle Cluster') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
+                        dir("terraform/bleachdle") {
                             sh '''
-                                echo "[Destroy Old] Checking if bleachdle-cluster exists..."
+                                echo "[Bleachdle] Checking if 'bleachdle-cluster' exists..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config set project "bleachdle-web"
+                                gcloud config set project "$GCP_PROJECT"
                                 terraform init
 
-                                # If ephemeral cluster doesn't exist, skip destroying:
                                 set +e
-                                gcloud container clusters describe bleachdle-cluster --region us-central1 > /dev/null 2>&1
+                                gcloud container clusters describe bleachdle-cluster --region "$GCP_REGION" > /dev/null 2>&1
                                 EPH_EXISTS=$?
                                 set -e
 
                                 if [ $EPH_EXISTS -eq 0 ]; then
-                                  echo "[Destroy Old] 'bleachdle-cluster' found. Destroying..."
-                                  terraform destroy -auto-approve -target=google_container_node_pool.bleachdle_ephemeral_nodes -target=google_container_cluster.bleachdle_ephemeral || true
+                                  echo "[Bleachdle] Found 'bleachdle-cluster'. Destroying..."
+                                  terraform destroy -auto-approve || true
                                 else
-                                  echo "[Destroy Old] 'bleachdle-cluster' NOT found. Skipping destroy."
+                                  echo "[Bleachdle] 'bleachdle-cluster' NOT found. Skipping."
                                 fi
                             '''
                         }
@@ -158,48 +176,19 @@ pipeline {
             }
         }
 
-        // 6) Terraform Import (KMS, SA, etc.) except ephemeral cluster
-        stage('Terraform Import') {
-            steps {
-                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                    dir("terraform") {
-                        sh '''
-                            export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
-                            gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                            gcloud config set project "bleachdle-web"
-                            terraform init
-                            
-                            echo "[Import] Importing KMS Key Ring..."
-                            terraform import -input=false google_kms_key_ring.vault_key_ring projects/bleachdle-web/locations/us-central1/keyRings/vault-key-ring || true
-                            
-                            echo "[Import] Importing KMS Crypto Key..."
-                            terraform import -input=false google_kms_crypto_key.vault_crypto_key projects/bleachdle-web/locations/us-central1/keyRings/vault-key-ring/cryptoKeys/vault-key || true
-                            
-                            echo "[Import] Importing Vault Service Account..."
-                            terraform import -input=false google_service_account.vault_sa projects/bleachdle-web/serviceAccounts/vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
-                            
-                            echo "[Import] Importing IAM Binding..."
-                            terraform import -input=false google_project_iam_member.vault_sa_kms_bind bleachdle-web/roles/cloudkms.cryptoKeyEncrypterDecrypter/serviceAccount:vault-unseal-sa@bleachdle-web.iam.gserviceaccount.com || true
-
-                            echo "[Import] Skipping SA Key import (resource does not support import)."
-                        '''
-                    }
-                }
-            }
-        }
-
-        // 7) Terraform Apply to create new Bleachdle ephemeral cluster
-        stage('Terraform Apply (Ephemeral)') {
+        // 5) Terraform Apply for the ephemeral cluster
+        stage('Create Bleachdle Ephemeral Cluster') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
+                        dir("terraform/bleachdle") {
                             sh '''
-                                echo "[Terraform Apply] Creating brand new ephemeral cluster + KMS + SA..."
+                                echo "[Bleachdle] Creating ephemeral cluster..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config set project "bleachdle-web"
-                                
+                                gcloud config set project "$GCP_PROJECT"
+
                                 terraform init
                                 terraform plan -out=tfplan
                                 terraform apply -auto-approve tfplan
@@ -210,107 +199,99 @@ pipeline {
             }
         }
 
-        // 8) Create vault-gcp-creds Secret automatically in ephemeral cluster
+        // 6) Create Vault GCP Secret (we need the SA key from the 'argo' project)
         stage('Create Vault GCP Secret') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
-                            sh '''
-                                echo "[Create Vault Secret] Creating K8s secret vault-gcp-creds in 'vault' namespace on ephemeral cluster..."
-                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
-                                PROJECT_NAME=$(terraform output -raw gcp_project)
-                                REGION_NAME=$(terraform output -raw gcp_region)
-                                CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
-                                
-                                VAULT_SA_KEY=$(terraform output -raw vault_unseal_sa_key)
-                                
-                                gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
-                                gcloud config set project "$PROJECT_NAME"
-                                gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$REGION_NAME"
-                                
-                                kubectl create namespace vault --dry-run=client -o yaml | kubectl apply -f -
-                                kubectl -n vault delete secret vault-gcp-creds --ignore-not-found=true
-                                kubectl -n vault create secret generic vault-gcp-creds --from-literal=gcp-creds.json="$VAULT_SA_KEY"
-                                
-                                echo "[Vault Secret] Created 'vault-gcp-creds' in vault namespace."
-                            '''
-                        }
+                        sh '''
+                            # Grab the SA key from 'terraform/argo'
+                            cd terraform/argo
+                            terraform init
+                            SA_KEY=$(terraform output -raw vault_unseal_sa_key)
+
+                            # Switch to ephemeral folder
+                            cd ../bleachdle
+                            terraform init
+                            CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
+
+                            export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
+                            gcloud config set project "$GCP_PROJECT"
+                            gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$GCP_REGION"
+
+                            echo "[Vault GCP Secret] Creating 'vault-gcp-creds' secret..."
+                            kubectl create namespace vault --dry-run=client -o yaml | kubectl apply -f -
+                            kubectl -n vault delete secret vault-gcp-creds --ignore-not-found=true
+                            kubectl -n vault create secret generic vault-gcp-creds --from-literal=gcp-creds.json="$SA_KEY"
+                        '''
                     }
                 }
             }
         }
 
-        // 9) Argo CD Applications (Vault + Bleachdle) on ephemeral cluster
+        // 7) Argo CD Applications (Vault + Bleachdle) on ephemeral cluster
         stage('Argo CD Applications') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
-                            sh '''
-                                echo "[Argo CD Apps] Applying Vault & Bleachdle Argo apps in ephemeral cluster..."
-                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
-                                PROJECT_NAME=$(terraform output -raw gcp_project)
-                                REGION_NAME=$(terraform output -raw gcp_region)
-                                CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
-                                
-                                gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
-                                gcloud config set project "$PROJECT_NAME"
-                                gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$REGION_NAME"
-                                
-                                kubectl apply -f ../argocd-apps/vault-application.yaml -n argocd
-                                kubectl apply -f ../argocd-apps/bleachdle-application.yaml -n argocd
-                                echo "[Argo CD] Submitted Vault & Bleachdle applications to ephemeral cluster."
-                            '''
-                        }
+                        sh '''
+                            cd terraform/bleachdle
+                            terraform init
+                            CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
+
+                            export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
+                            gcloud config set project "$GCP_PROJECT"
+                            gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$GCP_REGION"
+
+                            # Apply your ArgoCD application definitions to ephemeral cluster
+                            kubectl apply -f ../../argocd-apps/vault-application.yaml -n argocd
+                            kubectl apply -f ../../argocd-apps/bleachdle-application.yaml -n argocd
+                        '''
                     }
                 }
             }
         }
 
-        // 10) Populate Vault Secrets in ephemeral cluster
+        // 8) Populate Vault Secrets in ephemeral cluster
         stage('Populate Vault Secrets') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                        dir("terraform") {
-                            sh '''
-                                echo "[Populate Vault] Logging into Vault and setting secrets in ephemeral cluster..."
-                                export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
-                                PROJECT_NAME=$(terraform output -raw gcp_project)
-                                REGION_NAME=$(terraform output -raw gcp_region)
-                                CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
-                                
-                                gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
-                                gcloud config set project "$PROJECT_NAME"
-                                gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$REGION_NAME"
-                                
-                                echo "[Populate Vault] Waiting for vault pod (vault-0) to be ready..."
-                                kubectl rollout status statefulset/vault-0 -n vault --timeout=180s || true
-                                
-                                COUNT=0
-                                until kubectl -n vault exec vault-0 -- sh -c 'curl -s http://127.0.0.1:8200/v1/sys/health | grep "initialized"'; do
-                                  echo "Waiting for Vault to come up..."
-                                  sleep 5
-                                  COUNT=$((COUNT+1))
-                                  if [ $COUNT -gt 30 ]; then
-                                    echo "Vault did not become healthy in time."
-                                    exit 1
-                                  fi
-                                done
-                                
-                                kubectl -n vault exec vault-0 -- vault login token=root
-                                
-                                kubectl -n vault exec vault-0 -- vault kv put bleach/data/app \
-                                  db_host="35.246.242.114" \
-                                  db_user="root" \
-                                  db_password="GeverYozem10072003" \
-                                  db_name="Bleach_DB" \
-                                  api_url="https://bleachdle-web.oa.r.appspot.com/"
-                                
-                                echo "[Populate Vault] Secrets set. Bleachdle pods can now pull them."
-                            '''
-                        }
+                        sh '''
+                            cd terraform/bleachdle
+                            terraform init
+                            CLUSTER_NAME=$(terraform output -raw bleachdle_cluster_name)
+
+                            export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file=$GCP_CREDENTIALS_FILE
+                            gcloud config set project "$GCP_PROJECT"
+                            gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$GCP_REGION"
+
+                            echo "[Populate Vault] Waiting for vault-0..."
+                            kubectl rollout status statefulset/vault-0 -n vault --timeout=180s || true
+
+                            COUNT=0
+                            until kubectl -n vault exec vault-0 -- sh -c 'curl -s http://127.0.0.1:8200/v1/sys/health | grep "initialized"'; do
+                              echo "Waiting for Vault..."
+                              sleep 5
+                              COUNT=$((COUNT+1))
+                              if [ $COUNT -gt 30 ]; then
+                                echo "Vault not healthy in time."
+                                exit 1
+                              fi
+                            done
+
+                            kubectl -n vault exec vault-0 -- vault login token=root
+
+                            kubectl -n vault exec vault-0 -- vault kv put bleach/data/app \
+                              db_host="35.246.242.114" \
+                              db_user="root" \
+                              db_password="GeverYozem10072003" \
+                              db_name="Bleach_DB" \
+                              api_url="https://bleachdle-web.oa.r.appspot.com/"
+                        '''
                     }
                 }
             }

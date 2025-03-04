@@ -1,3 +1,6 @@
+###############################################################################
+# terraform/bleachdle/gke_cluster.tf (Ephemeral cluster)
+###############################################################################
 resource "google_container_cluster" "bleachdle_ephemeral" {
   name                     = "bleachdle-cluster"
   location                 = var.GCP_REGION
@@ -18,9 +21,9 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
 }
 
 resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
-  name      = "bleachdle-ephemeral-nodes"
-  cluster   = google_container_cluster.bleachdle_ephemeral.name
-  location  = var.GCP_REGION
+  name     = "bleachdle-ephemeral-nodes"
+  cluster  = google_container_cluster.bleachdle_ephemeral.name
+  location = var.GCP_REGION
 
   autoscaling {
     min_node_count = 1
@@ -29,7 +32,7 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 
   node_config {
     machine_type = "e2-medium"
-    image_type   = "COS_CONTAINERD"
+    image_type   = "COS_CONTAINERD"  # Must specify to avoid GKE errors
     disk_size_gb = 15
     disk_type    = "pd-standard"
     oauth_scopes = [
@@ -44,7 +47,7 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 }
 
 ###############################################################################
-# KUBERNETES & HELM providers for Bleachdle cluster
+# K8S & HELM providers for ephemeral cluster
 ###############################################################################
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"

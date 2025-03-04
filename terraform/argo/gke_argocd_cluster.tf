@@ -1,3 +1,6 @@
+###############################################################################
+# terraform/argo/gke_argocd_cluster.tf
+###############################################################################
 resource "google_container_cluster" "argocd" {
   name                     = "argocd-cluster"
   location                 = var.GCP_REGION
@@ -41,23 +44,6 @@ resource "google_container_node_pool" "argocd_nodes" {
     auto_upgrade = true
     auto_repair  = true
   }
-}
-
-###############################################################################
-# (Optional) We can create a dedicated K8s provider for ArgoCD cluster if needed
-###############################################################################
-provider "kubernetes" {
-  alias                  = "argocd"
-  host                   = "https://${google_container_cluster.argocd.endpoint}"
-  cluster_ca_certificate = base64decode(google_container_cluster.argocd.master_auth[0].cluster_ca_certificate)
-  token                  = data.google_client_config.default.access_token
-}
-
-###############################################################################
-# Outputs
-###############################################################################
-output "argocd_cluster_endpoint" {
-  value = google_container_cluster.argocd.endpoint
 }
 
 output "argocd_cluster_name" {
