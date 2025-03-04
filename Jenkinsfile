@@ -136,7 +136,7 @@ pipeline {
                                 echo "[Destroy Old] Checking if bleachdle-cluster exists..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config.set project "bleachdle-web"
+                                gcloud config set project "bleachdle-web"
                                 terraform init
 
                                 # If ephemeral cluster doesn't exist, skip destroying:
