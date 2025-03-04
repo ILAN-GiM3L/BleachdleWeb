@@ -81,16 +81,15 @@ pipeline {
                                 echo "[Argo CD] Installing Argo CD on 'argocd-cluster'..."
                                 export GOOGLE_APPLICATION_CREDENTIALS=$GCP_CREDENTIALS_FILE
 
-                                PROJECT_NAME=$(terraform output -raw gcp_project)
                                 REGION_NAME=$(terraform output -raw gcp_region)
                                 ARGO_CLUSTER=$(terraform output -raw argocd_cluster_name)
 
                                 gcloud auth activate-service-account --key-file="$GCP_CREDENTIALS_FILE"
-                                gcloud config set project "$PROJECT_NAME"
+                                gcloud config set project "bleachdle-web"
                                 gcloud components install gke-gcloud-auth-plugin --quiet || true
 
                                 # If for some reason the cluster doesn't exist, this will fail
-                                gcloud container clusters get-credentials "$ARGO_CLUSTER" --region "$REGION_NAME"
+                                gcloud container clusters get-credentials "$ARGO_CLUSTER" --region us-central1
 
                                 # Create the argocd namespace & apply Argo CD manifests
                                 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
