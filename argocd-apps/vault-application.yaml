@@ -14,7 +14,7 @@ spec:
     chart: "vault"
     helm:
       releaseName: vault
-      values: |
+      values: |-
         server:
           ha:
             enabled: true

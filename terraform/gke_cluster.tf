@@ -29,7 +29,8 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 
   node_config {
     machine_type = "e2-medium"
-    disk_size_gb = 15
+    image_type   = "COS_CONTAINERD"
+    disk_size_gb = 10
     disk_type    = "pd-standard"
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
