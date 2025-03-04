@@ -1,8 +1,8 @@
-resource "google_container_cluster" "primary" {
-  name                    = "bleachdle-cluster-${random_id.key_id.hex}"
-  location                = var.GCP_REGION
+resource "google_container_cluster" "bleachdle_ephemeral" {
+  name                     = "bleachdle-cluster"
+  location                 = var.GCP_REGION
   remove_default_node_pool = true
-  initial_node_count      = 1
+  initial_node_count       = 1
 
   network    = "default"
   subnetwork = "default"
@@ -17,9 +17,10 @@ resource "google_container_cluster" "primary" {
   }
 }
 
-resource "google_container_node_pool" "primary_nodes" {
-  cluster  = google_container_cluster.primary.name
-  location = var.GCP_REGION
+resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
+  name      = "bleachdle-ephemeral-nodes"
+  cluster   = google_container_cluster.bleachdle_ephemeral.name
+  location  = var.GCP_REGION
 
   autoscaling {
     min_node_count = 1
@@ -39,4 +40,32 @@ resource "google_container_node_pool" "primary_nodes" {
     auto_upgrade = true
     auto_repair  = true
   }
+}
+
+###############################################################################
+# KUBERNETES & HELM providers for Bleachdle cluster
+###############################################################################
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
+  cluster_ca_certificate = base64decode(google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate)
+  token                  = data.google_client_config.default.access_token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
+    cluster_ca_certificate = base64decode(google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate)
+    token                  = data.google_client_config.default.access_token
+  }
+}
+
+###############################################################################
+# Outputs
+###############################################################################
+output "bleachdle_cluster_endpoint" {
+  value = google_container_cluster.bleachdle_ephemeral.endpoint
+}
+
+output "bleachdle_cluster_name" {
+  value = google_container_cluster.bleachdle_ephemeral.name
 }

@@ -45,7 +45,7 @@ resource "google_project_service" "cloud_resource_manager" {
 
 data "google_client_config" "default" {}
 
-# We still keep a random_id for the cluster naming
+# We still keep a random_id for the  naming
 resource "random_id" "key_id" {
   byte_length = 8
 }
@@ -108,22 +108,6 @@ resource "google_service_account_key" "vault_sa_key" {
 # [CHANGE] Replaced the null_resource that created a local file and the data "local_file" block.
 # The output below now directly references this native resource.
 
-###############################################################################
-# KUBERNETES & HELM providers
-###############################################################################
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-  token                  = data.google_client_config.default.access_token
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = "https://${google_container_cluster.primary.endpoint}"
-    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-    token                  = data.google_client_config.default.access_token
-  }
-}
 
 ###############################################################################
 # Outputs
