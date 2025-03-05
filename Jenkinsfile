@@ -80,7 +80,7 @@ pipeline {
                                 export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
 
                                 gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                                gcloud config.set project "\$GCP_PROJECT"
+                                gcloud config set project "\$GCP_PROJECT"
                                 terraform init
 
                                 terraform import google_kms_key_ring.vault_key_ring     projects/\$GCP_PROJECT/locations/\$GCP_REGION/keyRings/vault-key-ring || true
