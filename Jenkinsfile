@@ -202,11 +202,19 @@ pipeline {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                         sh """
                             cd terraform/argo
+
+                            export GOOGLE_APPLICATION_CREDENTIALS="$GCP_CREDENTIALS_FILE"
+                            export GOOGLE_CLOUD_KEYFILE_JSON="$GCP_CREDENTIALS_FILE"
+
                             terraform init
                             SA_KEY=\$(terraform output -raw vault_unseal_sa_key)
 
                             # Switch to ephemeral cluster
                             cd ../bleachdle
+                            
+                            export GOOGLE_APPLICATION_CREDENTIALS="$GCP_CREDENTIALS_FILE"
+                            export GOOGLE_CLOUD_KEYFILE_JSON="$GCP_CREDENTIALS_FILE"
+
                             terraform init
                             CLUSTER_NAME=\$(terraform output -raw bleachdle_cluster_name)
 
