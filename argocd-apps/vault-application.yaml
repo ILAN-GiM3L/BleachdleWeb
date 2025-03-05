@@ -1,25 +1,25 @@
+# argocd-apps/vault-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: vault
-  namespace: argocd
+  namespace: argocd   # Must exist in the same cluster & namespace as Argo CD
 spec:
-  destination:
-    namespace: vault
-    server: https://kubernetes.default.svc
   project: default
   source:
     repoURL: 'https://helm.releases.hashicorp.com'
-    targetRevision: "0.24.0"  # Updated to a newer version with improved auto-unseal support
+    targetRevision: "0.24.0"
     chart: "vault"
     helm:
       releaseName: vault
       values: |-
+        injector:
+          enabled: true
         server:
+          # High-availability, root token, auto-unseal w/ GCP
           ha:
             enabled: true
             replicas: 1
-            # For easy automation, set an initial root token (insecure for production).
             initialRootToken: "root"
           extraEnvironmentVars:
             GCP_PROJECT: "bleachdle-web"
@@ -49,6 +49,9 @@ spec:
             - name: vault-gcp-creds
               mountPath: /vault/config
               readOnly: true
+  destination:
+    name: bleachdle-ephemeral  # reference ephemeral cluster by name
+    namespace: vault
   syncPolicy:
     automated:
       prune: true
