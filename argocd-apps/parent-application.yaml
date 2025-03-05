@@ -1,0 +1,21 @@
+# argocd-apps/parent-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bleachdle-parent
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/ILAN-GiM3L/BleachdleWeb.git"
+    targetRevision: "main"
+    path: "argocd-apps/child-apps"           # <-- points to the directory containing child apps
+    directory:
+      recurse: true                          # ensures all .yaml in child-apps folder are processed
+  destination:
+    server: https://kubernetes.default.svc   # Parent app lives in the same cluster as Argo CD
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
