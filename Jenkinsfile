@@ -124,24 +124,27 @@ pipeline {
         stage('Import Existing KeyRing & Key') {
             steps {
                 script {
-                dir("terraform/bleachdle") {
+                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                    dir("terraform/bleachdle") {
                     sh """
-                    export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
+                        export GOOGLE_APPLICATION_CREDENTIALS="\${GCP_CREDENTIALS_FILE}"
+                        gcloud auth activate-service-account --key-file="\${GCP_CREDENTIALS_FILE}"
+                        gcloud config set project "\${GCP_PROJECT}"
 
-                    gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                    gcloud config set project "\$GCP_PROJECT"
-                    terraform init
+                        terraform init
 
-                    terraform import google_kms_key_ring.vault_key_ring \\
-                        projects/${GCP_PROJECT}/locations/${GCP_REGION}/keyRings/vault-key-ring || true
+                        terraform import google_kms_key_ring.vault_key_ring \
+                        projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring || true
 
-                    terraform import google_kms_crypto_key.vault_key \\
-                        projects/${GCP_PROJECT}/locations/${GCP_REGION}/keyRings/vault-key-ring/cryptoKeys/vault-key || true
+                        terraform import google_kms_crypto_key.vault_key \
+                        projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring/cryptoKeys/vault-key || true
                     """
                     }
                 }
             }
         }
+    }
+
 
         
 
