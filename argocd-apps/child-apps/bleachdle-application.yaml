@@ -26,9 +26,6 @@ spec:
           role: "bleachdle-role"
           secretPath: "bleach/data/app"
           skipVerify: true
-        serviceAccount:
-          create: false
-          name: "bleachdle-sa"
   destination:
     name: bleachdle-ephemeral  # ephemeral cluster
     namespace: default

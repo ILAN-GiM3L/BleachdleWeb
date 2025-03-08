@@ -43,7 +43,18 @@ resource "google_project_service" "cloud_resource_manager" {
   disable_on_destroy = false
 }
 
+resource "google_project_service" "kms" {
+  project = var.GCP_PROJECT
+  service = "cloudkms.googleapis.com"
+}
+resource "google_project_service" "container" {
+  project = var.GCP_PROJECT
+  service = "container.googleapis.com"
+}
+
+
 data "google_client_config" "default" {}
+
 
 
 

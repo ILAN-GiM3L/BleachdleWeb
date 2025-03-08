@@ -35,4 +35,18 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
+resource "google_kms_key_ring" "vault_key_ring" {
+  name     = "vault-key-ring"
+  location = var.GCP_REGION
+}
+
+resource "google_kms_crypto_key" "vault_key" {
+  name            = "vault-key"
+  key_ring        = google_kms_key_ring.vault_key_ring.self_link
+  rotation_period = "100000s"
+  purpose         = "ENCRYPT_DECRYPT"
+}
+
 data "google_client_config" "default" {}
+
+

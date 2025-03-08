@@ -27,34 +27,7 @@ spec:
           export API_URL={{`{{ .Data.data.api_url }}`}}
           {{`{{- end }}`}}
     spec:
-      serviceAccountName: bleachdle-sa
-      initContainers:
-        - name: configure-vault-auth
-          image: hashicorp/vault
-          command:
-            - "/bin/sh"
-            - "-c"
-            - |
-              echo "Fetching service account token..."
-              SA_JWT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-              KUBE_CA_CERT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)
-
-              echo "Logging into Vault..."
-              export VAULT_ADDR=http://vault.vault.svc:8200
-              vault login -method=token token=root
-
-              echo "Configuring Vault Kubernetes auth backend..."
-              vault write auth/kubernetes/config \
-                token_reviewer_jwt="$SA_JWT_TOKEN" \
-                kubernetes_host="https://kubernetes.default.svc.cluster.local" \
-                kubernetes_ca_cert="$KUBE_CA_CERT" \
-                issuer="https://kubernetes.default.svc.cluster.local"
-
-              vault write auth/kubernetes/role/bleachdle-role \
-                bound_service_account_names=bleachdle-sa \
-                bound_service_account_namespaces=default \
-                policies=bleachdle-policy \
-                ttl=1h
+      serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: vault-sidecar  
           image: "hashicorp/vault:1.13.1"

@@ -18,5 +18,5 @@ vault:
   skipVerify: true
 
 serviceAccount:
-  create: false
+  create: true
   name: "bleachdle-sa"

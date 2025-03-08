@@ -5,7 +5,6 @@ metadata:
   name: vault
   namespace: argocd   # Must exist in the same cluster & namespace as Argo CD
 spec:
-  project: default
   source:
     repoURL: 'https://helm.releases.hashicorp.com'
     targetRevision: "0.24.0"
@@ -16,11 +15,9 @@ spec:
         injector:
           enabled: true
         server:
-          # High-availability, root token, auto-unseal w/ GCP
           ha:
             enabled: true
             replicas: 1
-            initialRootToken: "root"
           extraEnvironmentVars:
             GCP_PROJECT: "bleachdle-web"
             GCP_REGION: "us-central1"
