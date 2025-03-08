@@ -121,6 +121,32 @@ pipeline {
             }
         }
 
+        stage('Import Existing KeyRing & Key') {
+            steps {
+                script {
+                // If the environment remains the same and still has valid authentication
+                // no need to run `gcloud auth activate-service-account` again
+                // or set GOOGLE_APPLICATION_CREDENTIALS again.
+                // Just run Terraform commands:
+                dir("terraform/bleachdle") {
+                    sh """
+                    terraform init
+
+                    terraform import google_kms_key_ring.vault_key_ring \\
+                        projects/${GCP_PROJECT}/locations/${GCP_REGION}/keyRings/vault-key-ring || true
+
+                    terraform import google_kms_crypto_key.vault_key \\
+                        projects/${GCP_PROJECT}/locations/${GCP_REGION}/keyRings/vault-key-ring/cryptoKeys/vault-key || true
+                    """
+                    }
+                }
+            }
+        }
+
+        
+
+
+
         // 3) Destroy Old Bleachdle Ephemeral cluster if it exists
         stage('Destroy Old Bleachdle Cluster') {
             steps {
