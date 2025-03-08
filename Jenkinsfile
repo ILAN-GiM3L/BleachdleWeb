@@ -111,7 +111,7 @@ pipeline {
                                   else
                                     echo "Waiting for IP..."
                                     sleep 10
-                                    COUNT=\$((COUNT+1))
+                                    COUNT=\\$((COUNT+1))     # <-- FIXED HERE
                                   fi
                                 done
                             """
@@ -181,31 +181,21 @@ pipeline {
             steps {
                 script {
                 withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                    // 1) get ephemeral cluster credentials
                     sh """
                     cd terraform/bleachdle
                     export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
                     gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
                     gcloud container clusters get-credentials bleachdle-cluster --region "\$GCP_REGION"
-                    """
 
-                    // 2) create 'vault' namespace if missing
-                    sh """
                     kubectl create namespace vault --dry-run=client -o yaml | kubectl apply -f -
-                    """
-
-                    // 3) create the secret from GCP creds
-                    sh """
                     kubectl create secret generic vault-gcp-creds \
                         --from-file=gcp-creds.json=\$GCP_CREDENTIALS_FILE \
                         --namespace vault
                     """
-                    }
                 }
             }
         }
-
-
+    }
 
         // 5) Register Bleachdle Ephemeral Cluster in ArgoCD
         stage('Register Bleachdle Ephemeral Cluster in ArgoCD') {
@@ -216,34 +206,26 @@ pipeline {
                             echo "[Argo] Registering ephemeral cluster with ArgoCD..."
                             export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
 
-                            # 1) Get credentials for Argocd cluster
                             cd terraform/argo
-                            ARGO_CLUSTER=\$(terraform output -raw argocd_cluster_name)
+                            ARGO_CLUSTER=\\$(terraform output -raw argocd_cluster_name)     # <-- FIXED HERE
+                            gcloud auth activate-service-account --key-file="\\\$GCP_CREDENTIALS_FILE"
+                            gcloud config set project "\\\$GCP_PROJECT"
+                            gcloud container clusters get-credentials "\\\$ARGO_CLUSTER" --region "\\\$GCP_REGION"
 
-                            gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                            gcloud config set project "\$GCP_PROJECT"
-                            gcloud container clusters get-credentials "\$ARGO_CLUSTER" --region "\$GCP_REGION"
+                            EXTERNAL_IP=\\$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                            ARGOCD_PASSWORD=\\$(kubectl get secret argocd-initial-admin-secret -n argocd -o go-template='{{.data.password | base64decode}}')
 
-                            # 2) Extract ArgoCD service IP and admin password
-                            EXTERNAL_IP=\$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                            ARGOCD_PASSWORD=\$(kubectl get secret argocd-initial-admin-secret -n argocd -o go-template='{{.data.password | base64decode}}')
-
-                            # 3) Login to ArgoCD CLI (assumes ArgoCD CLI is installed)
-                            argocd login "\$EXTERNAL_IP" \\
+                            argocd login "\\\$EXTERNAL_IP" \\
                                 --username admin \\
-                                --password "\$ARGOCD_PASSWORD" \\
+                                --password "\\\$ARGOCD_PASSWORD" \\
                                 --insecure
 
-                            # 4) Get credentials for the ephemeral cluster
                             cd ../bleachdle
-                            BLEACH_CLUSTER=\$(terraform output -raw bleachdle_cluster_name)
-                            gcloud container clusters get-credentials "\$BLEACH_CLUSTER" --region "\$GCP_REGION"
+                            BLEACH_CLUSTER=\\$(terraform output -raw bleachdle_cluster_name)
+                            gcloud container clusters get-credentials "\\\$BLEACH_CLUSTER" --region "\\\$GCP_REGION"
 
-                            # 5) Add ephemeral cluster to ArgoCD
-                            CURRENT_CONTEXT=\$(kubectl config current-context)
-
-                            # For non-interactive mode, you can do:
-                            yes | argocd cluster add "\$CURRENT_CONTEXT" --name bleachdle-ephemeral
+                            CURRENT_CONTEXT=\\$(kubectl config current-context)
+                            yes | argocd cluster add "\\\$CURRENT_CONTEXT" --name bleachdle-ephemeral
                             echo "[Argo] Ephemeral cluster registered under name 'bleachdle-ephemeral'"
                         """
                     }
@@ -258,29 +240,23 @@ pipeline {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                         sh """
                             echo "[Argo] Creating/Syncing Parent Application..."
-                            export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
+                            export GOOGLE_APPLICATION_CREDENTIALS=\\\$GCP_CREDENTIALS_FILE
 
-                            # 1) Retrieve credentials for ArgoCD cluster again
                             cd terraform/argo
-                            ARGO_CLUSTER=\$(terraform output -raw argocd_cluster_name)
+                            ARGO_CLUSTER=\\$(terraform output -raw argocd_cluster_name)
+                            gcloud auth activate-service-account --key-file="\\\$GCP_CREDENTIALS_FILE"
+                            gcloud config set project "\\\$GCP_PROJECT"
+                            gcloud container clusters get-credentials "\\\$ARGO_CLUSTER" --region "\\\$GCP_REGION"
 
-                            gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                            gcloud config set project "\$GCP_PROJECT"
-                            gcloud container clusters get-credentials "\$ARGO_CLUSTER" --region "\$GCP_REGION"
+                            EXTERNAL_IP=\\$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                            ARGOCD_PASSWORD=\\$(kubectl get secret argocd-initial-admin-secret -n argocd -o go-template='{{.data.password | base64decode}}')
 
-                            EXTERNAL_IP=\$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                            ARGOCD_PASSWORD=\$(kubectl get secret argocd-initial-admin-secret -n argocd -o go-template='{{.data.password | base64decode}}')
-
-                            # 2) Login to ArgoCD
-                            argocd login "\$EXTERNAL_IP" \\
+                            argocd login "\\\$EXTERNAL_IP" \\
                                 --username admin \\
-                                --password "\$ARGOCD_PASSWORD" \\
+                                --password "\\\$ARGOCD_PASSWORD" \\
                                 --insecure
 
-                            # 3) Apply or create the parent application
-                            # Use kubectl apply:
                             kubectl apply -n argocd -f ../../argocd-apps/parent-application.yaml
-
                             echo "[Argo] Parent Application created/updated. Child apps will be managed automatically."
                         """
                     }
@@ -291,143 +267,123 @@ pipeline {
         stage('Wait for Bleachdle to be Deployed') {
             steps {
                 script {
-                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                    sh """
-                    cd terraform/bleachdle
-                    export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
-                    gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                    gcloud container clusters get-credentials bleachdle-cluster --region "\$GCP_REGION"
-                    
-                    echo "Waiting up to 2 minutes for bleachdle-sa to appear..."
-                    COUNT=0
-                    while [ \$COUNT -lt 12 ]; do
-                        SA_SECRET=\$(kubectl get secret -n default | grep 'bleachdle-sa-token' || true)
-                        if [ -n "\$SA_SECRET" ]; then
-                        echo "bleachdle-sa secret found!"
-                        break
-                        else
-                        echo "bleachdle-sa secret not found yet..."
-                        sleep 10
-                        COUNT=\$((COUNT+1))
-                        fi
-                    done
-                    """
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        sh """
+                            cd terraform/bleachdle
+                            export GOOGLE_APPLICATION_CREDENTIALS=\\\$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file="\\\$GCP_CREDENTIALS_FILE"
+                            gcloud container clusters get-credentials bleachdle-cluster --region "\\\$GCP_REGION"
+
+                            echo "Waiting up to 2 minutes for bleachdle-sa to appear..."
+                            COUNT=0
+                            while [ \\\$COUNT -lt 12 ]; do
+                                SA_SECRET=\\\$(kubectl get secret -n default | grep 'bleachdle-sa-token' || true)  # <-- FIXED HERE
+                                if [ -n "\\\$SA_SECRET" ]; then
+                                    echo "bleachdle-sa secret found!"
+                                    break
+                                else
+                                    echo "bleachdle-sa secret not found yet..."
+                                    sleep 10
+                                    COUNT=\\\$((COUNT+1))   # <-- FIXED HERE
+                                fi
+                            done
+                        """
                     }
                 }
             }
         }
 
-
         stage('Initialize & Configure Vault') {
             steps {
                 script {
-                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                    // 1) get ephemeral cluster credentials
-                    sh """
-                    cd terraform/bleachdle
-                    export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
-                    gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
-                    gcloud container clusters get-credentials bleachdle-cluster --region "\$GCP_REGION"
-                    """
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        sh """
+                            cd terraform/bleachdle
+                            export GOOGLE_APPLICATION_CREDENTIALS=\\\$GCP_CREDENTIALS_FILE
+                            gcloud auth activate-service-account --key-file="\\\$GCP_CREDENTIALS_FILE"
+                            gcloud container clusters get-credentials bleachdle-cluster --region "\\\$GCP_REGION"
 
-                    // 2) Wait for Vault pod to appear
-                    // e.g. wait up to 2 minutes
-                    sh """
-                    COUNT=0
-                    while [ \$COUNT -lt 12 ]; do
-                        POD_READY=$(kubectl get pods -n vault -l app.kubernetes.io/name=vault --field-selector=status.phase=Running | grep 'vault-' | wc -l)
-                        if [ "\$POD_READY" -gt 0 ]; then
-                        echo "Vault pod is Running"
-                        break
-                        else
-                        echo "Waiting for Vault pod..."
-                        sleep 10
-                        COUNT=\$((COUNT+1))
-                        fi
-                    done
-                    """
+                            COUNT=0
+                            while [ \\\$COUNT -lt 12 ]; do
+                                POD_READY=\\\$(kubectl get pods -n vault -l app.kubernetes.io/name=vault --field-selector=status.phase=Running | grep 'vault-' | wc -l)
+                                if [ "\\\$POD_READY" -gt 0 ]; then
+                                    echo "Vault pod is Running"
+                                    break
+                                else
+                                    echo "Waiting for Vault pod..."
+                                    sleep 10
+                                    COUNT=\\\$((COUNT+1))   # <-- FIXED HERE
+                                fi
+                            done
 
-                    // 3) Port-forward or use a quick dev approach. For real usage, you might expose Vault within cluster, or just do a port-forward:
-                    sh """
-                    # Run in background (use nohup or &)
-                    kubectl port-forward svc/vault -n vault 8200:8200 > /tmp/vault-pf.log 2>&1 &
-                    sleep 5
-                    """
+                            # Port-forward in background
+                            kubectl port-forward svc/vault -n vault 8200:8200 > /tmp/vault-pf.log 2>&1 &
+                            sleep 5
+                        """
 
-                    // 4) Initialize Vault if not already done
-                    sh """
-                    export VAULT_ADDR="http://127.0.0.1:8200"
-                    
-                    # Check if vault is already initialized
-                    set +e
-                    vault status 2>&1 | grep 'Initialized.*true' 
-                    IS_INIT=\$?
-                    set -e
+                        sh """
+                            export VAULT_ADDR="http://127.0.0.1:8200"
+                            set +e
+                            vault status 2>&1 | grep 'Initialized.*true'
+                            IS_INIT=\\\$?
+                            set -e
 
-                    if [ \$IS_INIT -eq 0 ]; then
-                        echo "[Vault] Already initialized."
-                    else
-                        echo "[Vault] Not initialized; initializing now..."
-                        INIT_OUTPUT=\$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
-                        echo "\$INIT_OUTPUT" > /tmp/init.json
-                        ROOT_TOKEN=\$(echo "\$INIT_OUTPUT" | jq -r '.root_token')
-                        UNSEAL_KEY=\$(echo "\$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
+                            if [ "\\\$IS_INIT" -eq 0 ]; then
+                                echo "[Vault] Already initialized."
+                            else
+                                echo "[Vault] Not initialized; initializing now..."
+                                INIT_OUTPUT=\\\$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
+                                echo "\\\$INIT_OUTPUT" > /tmp/init.json
+                                ROOT_TOKEN=\\\$(echo "\\\$INIT_OUTPUT" | jq -r '.root_token')
+                                UNSEAL_KEY=\\\$(echo "\\\$INIT_OUTPUT" | jq -r '.unseal_keys_b64[0]')
 
-                        echo "Unsealing Vault..."
-                        vault operator unseal "\$UNSEAL_KEY"
+                                vault operator unseal "\\\$UNSEAL_KEY"
+                                vault login "\\\$ROOT_TOKEN"
+                            fi
+                        """
 
-                        echo "Logging in with root token..."
-                        vault login "\$ROOT_TOKEN"
-                    fi
-                    """
+                        // 5) Policy + secrets
+                        sh """
+                            export VAULT_ADDR="http://127.0.0.1:8200"
+                            vault policy write bleachdle-policy - <<EOF
+        path "bleach/data/app" {
+          capabilities = ["create", "update", "read", "list", "delete"]
+        }
+EOF
 
-                    // 5) Now set up bleachdle-policy, add secrets, etc.
-                    sh """
-                    export VAULT_ADDR="http://127.0.0.1:8200"
-                    # If we re-inited above, we are already logged in with root token
-                    # If not, we might need to do 'vault login' if you forcibly set a root token.
+                            vault kv put bleach/data/app \\
+                                db_host="mydbhost.example" \\
+                                db_user="mydbuser" \\
+                                db_password="mydbpass" \\
+                                db_name="mydbname" \\
+                                api_url="https://my-api-url"
+                        """
 
-                    echo "[Vault] Writing bleachdle-policy..."
-                    vault policy write bleachdle-policy - <<EOF
-            path "bleach/data/app" {
-            capabilities = ["create", "update", "read", "list", "delete"]
-            }
-            EOF
+                        // 6) Kubernetes auth config
+                        sh """
+                            echo "[Vault] Enabling Kubernetes auth method..."
+                            export VAULT_ADDR="http://127.0.0.1:8200"
+                            vault auth enable kubernetes || true
 
-                    echo "[Vault] Creating secrets at bleach/data/app..."
-                    vault kv put bleach/data/app \\
-                        db_host="mydbhost.example" \\
-                        db_user="mydbuser" \\
-                        db_password="mydbpass" \\
-                        db_name="mydbname" \\
-                        api_url="https://my-api-url"
-                    """
-                    // 6) **Enable & Configure Kubernetes Auth** (NEW CODE)
-                    sh """                               
-                    echo "[Vault] Enabling Kubernetes auth method..."
-                    export VAULT_ADDR="http://127.0.0.1:8200"
-                    vault auth enable kubernetes || true
+                            echo "[Vault] Retrieving bleachdle-sa token..."
+                            SA_SECRET_NAME=\\\$(kubectl get secret -n default | grep 'bleachdle-sa-token' | awk '{print \\\$1}')   # <-- FIXED
+                            SA_JWT_TOKEN=\\\$(kubectl get secret "\\\$SA_SECRET_NAME" -n default -o jsonpath='{.data.token}' | base64 --decode)
+                            KUBE_CA_CERT=\\\$(kubectl get secret "\\\$SA_SECRET_NAME" -n default -o jsonpath='{.data.ca\\.crt}' | base64 --decode)
 
-                    echo "[Vault] Retrieving bleachdle-sa token..."
-                    SA_SECRET_NAME=\$(kubectl get secret -n default | grep 'bleachdle-sa-token' | awk '{print \$1}')
-                    SA_JWT_TOKEN=\$(kubectl get secret \$SA_SECRET_NAME -n default -o jsonpath='{.data.token}' | base64 --decode)
-                    KUBE_CA_CERT=\$(kubectl get secret \$SA_SECRET_NAME -n default -o jsonpath='{.data.ca\\.crt}' | base64 --decode)
+                            echo "[Vault] Configuring auth/kubernetes config..."
+                            vault write auth/kubernetes/config \\
+                                token_reviewer_jwt="\\\$SA_JWT_TOKEN" \\
+                                kubernetes_host="https://kubernetes.default.svc" \\
+                                kubernetes_ca_cert="\\\$KUBE_CA_CERT" \\
+                                issuer="https://kubernetes.default.svc.cluster.local"
 
-                    echo "[Vault] Configuring auth/kubernetes config..."
-                    vault write auth/kubernetes/config \\
-                        token_reviewer_jwt="\$SA_JWT_TOKEN" \\
-                        kubernetes_host="https://kubernetes.default.svc" \\
-                        kubernetes_ca_cert="\$KUBE_CA_CERT" \\
-                        issuer="https://kubernetes.default.svc.cluster.local"
-
-                    echo "[Vault] Creating bleachdle-role to map bleachdle-sa -> bleachdle-policy..."
-                    vault write auth/kubernetes/role/bleachdle-role \\
-                        bound_service_account_names=bleachdle-sa \\
-                        bound_service_account_namespaces=default \\
-                        policies=bleachdle-policy \\
-                        ttl=1h
-                    """                                   
-
+                            echo "[Vault] Creating bleachdle-role..."
+                            vault write auth/kubernetes/role/bleachdle-role \\
+                                bound_service_account_names=bleachdle-sa \\
+                                bound_service_account_namespaces=default \\
+                                policies=bleachdle-policy \\
+                                ttl=1h
+                        """
                     }
                 }
             }
