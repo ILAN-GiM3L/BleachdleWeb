@@ -121,35 +121,7 @@ pipeline {
             }
         }
 
-        stage('Import Existing KeyRing & Key') {
-            steps {
-                script {
-                withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-                    dir("terraform/bleachdle") {
-                    sh """
-                        export GOOGLE_APPLICATION_CREDENTIALS="\${GCP_CREDENTIALS_FILE}"
-                        gcloud auth activate-service-account --key-file="\${GCP_CREDENTIALS_FILE}"
-                        gcloud config set project "\${GCP_PROJECT}"
-
-                        terraform init
-
-                        terraform import google_kms_key_ring.vault_key_ring \
-                        projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring || true
-
-                        terraform import google_kms_crypto_key.vault_key \
-                        projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring/cryptoKeys/vault-key || true
-                    """
-                    }
-                }
-            }
-        }
-    }
-
-
         
-
-
-
         // 3) Destroy Old Bleachdle Ephemeral cluster if it exists
         stage('Destroy Old Bleachdle Cluster') {
             steps {
@@ -181,7 +153,31 @@ pipeline {
                 }
             }
         }
+        stage('Import Existing KeyRing & Key') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        dir("terraform/bleachdle") {
+                        sh """
+                            export GOOGLE_APPLICATION_CREDENTIALS="\${GCP_CREDENTIALS_FILE}"
+                            gcloud auth activate-service-account --key-file="\${GCP_CREDENTIALS_FILE}"
+                            gcloud config set project "\${GCP_PROJECT}"
 
+                            terraform init
+
+                            terraform import google_kms_key_ring.vault_key_ring \
+                            projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring || true
+
+                            terraform import google_kms_crypto_key.vault_key \
+                            projects/\${GCP_PROJECT}/locations/\${GCP_REGION}/keyRings/vault-key-ring/cryptoKeys/vault-key || true
+                        """
+                        }
+                    }
+                }
+            }
+        }
+
+        
         // 4) Create Bleachdle Ephemeral Cluster
         stage('Create Bleachdle Ephemeral Cluster') {
             steps {
