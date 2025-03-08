@@ -124,12 +124,12 @@ pipeline {
         stage('Import Existing KeyRing & Key') {
             steps {
                 script {
-                // If the environment remains the same and still has valid authentication
-                // no need to run `gcloud auth activate-service-account` again
-                // or set GOOGLE_APPLICATION_CREDENTIALS again.
-                // Just run Terraform commands:
                 dir("terraform/bleachdle") {
                     sh """
+                    export GOOGLE_APPLICATION_CREDENTIALS=\$GCP_CREDENTIALS_FILE
+
+                    gcloud auth activate-service-account --key-file="\$GCP_CREDENTIALS_FILE"
+                    gcloud config set project "\$GCP_PROJECT"
                     terraform init
 
                     terraform import google_kms_key_ring.vault_key_ring \\
