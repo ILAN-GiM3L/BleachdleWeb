@@ -394,11 +394,11 @@ EOF
 
                             echo "[Vault] Creating secrets at bleach/data/app..."
                             vault kv put bleach/data/app \\
-                                db_host="mydbhost.example" \\
-                                db_user="mydbuser" \\
-                                db_password="mydbpass" \\
-                                db_name="mydbname" \\
-                                api_url="https://my-api-url"
+                                db_host="35.246.242.114" \\
+                                db_user="root" \\
+                                db_password="GeverYozem10072003" \\
+                                db_name="Bleach_DB" \\
+                                api_url="https://bleachdle-web.oa.r.appspot.com"
                         """
 
                         // 6) **Enable & Configure Kubernetes Auth**

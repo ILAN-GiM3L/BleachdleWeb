@@ -18,9 +18,9 @@ spec:
           enabled: true
 
         server:
-          ha:
+          # Turn OFF HA, turn ON standalone. Great for a single replica w/ file storage
+          standalone:
             enabled: true
-            replicas: 1
             config: |
               ui = true
               listener "tcp" {
