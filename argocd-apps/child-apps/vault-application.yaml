@@ -5,6 +5,7 @@ metadata:
   name: vault
   namespace: argocd   # Must exist in the same cluster & namespace as Argo CD
 spec:
+  project: default
   source:
     repoURL: 'https://helm.releases.hashicorp.com'
     targetRevision: "0.24.0"
