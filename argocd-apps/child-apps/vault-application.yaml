@@ -10,7 +10,8 @@ spec:
   source:
     repoURL: "https://helm.releases.hashicorp.com"
     chart: "vault"
-    targetRevision: "0.24.0"
+    # CHANGED: Upgrade from "0.24.0" to "1.16.0" so that 'standalone' block is recognized:
+    targetRevision: "1.16.0"
     helm:
       releaseName: "vault"
       values: |-
