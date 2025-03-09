@@ -1,4 +1,4 @@
-# argocd-apps/vault-application.yaml
+# argocd-apps/child-apps/vault-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -19,26 +19,26 @@ spec:
           ha:
             enabled: true
             replicas: 1
+            config: |
+              ui = true
+              listener "tcp" {
+                address = "0.0.0.0:8200"
+                tls_disable = true
+              }
+              storage "file" {
+                path = "/vault/data"
+              }
+              seal "gcpckms" {
+                project     = "bleachdle-web"
+                region      = "us-central1"
+                key_ring    = "vault-key-ring"
+                crypto_key  = "vault-key"
+                credentials = "/vault/config/gcp-creds.json"
+              }
           extraEnvironmentVars:
             GCP_PROJECT: "bleachdle-web"
             GCP_REGION: "us-central1"
             GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
-          config: |
-            ui = true
-            listener "tcp" {
-              address = "0.0.0.0:8200"
-              tls_disable = true
-            }
-            storage "file" {
-              path = "/vault/data"
-            }
-            seal "gcpckms" {
-              project     = "bleachdle-web"
-              region      = "us-central1"
-              key_ring    = "vault-key-ring"
-              crypto_key  = "vault-key"
-              credentials = "/vault/config/gcp-creds.json"
-            }
           extraVolumes:
             - name: vault-gcp-creds
               secret:
