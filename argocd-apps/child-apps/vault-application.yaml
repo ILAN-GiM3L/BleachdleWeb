@@ -3,7 +3,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: vault
-  namespace: argocd   # Must exist in the same cluster & namespace as Argo CD
+  namespace: argocd
 spec:
   project: default
 
@@ -18,13 +18,17 @@ spec:
           enabled: true
 
         server:
-          # Turn OFF HA, turn ON standalone. Great for a single replica w/ file storage
+          # Force HA off to avoid the statefulset
+          ha:
+            enabled: false
+
           standalone:
             enabled: true
+            replicas: 1
             config: |
               ui = true
               listener "tcp" {
-                address     = "0.0.0.0:8200"
+                address = "0.0.0.0:8200"
                 tls_disable = true
               }
               storage "file" {
@@ -54,7 +58,7 @@ spec:
               readOnly: true
 
   destination:
-    name: bleachdle-ephemeral  # references ephemeral cluster by name
+    name: bleachdle-ephemeral
     namespace: vault
 
   syncPolicy:
