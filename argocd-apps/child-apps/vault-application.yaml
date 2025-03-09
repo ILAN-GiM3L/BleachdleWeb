@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: "https://helm.releases.hashicorp.com"
     chart: "vault"
-    targetRevision: "0.24.0"  # We keep 0.24.0 as you originally had
+    targetRevision: "0.24.0"
     helm:
       releaseName: "vault"
       values: |-
@@ -18,42 +18,11 @@ spec:
           enabled: true
 
         server:
-          # Force HA off (single Vault instance, though it uses a StatefulSet)
+          # Force HA off so we only deploy a Deployment (not a StatefulSet)
           ha:
             enabled: false
 
-          # Security context that lets non-root user (UID 100) read secrets
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 100
-            runAsGroup: 100
-            fsGroup: 100
-
-          # Provide the GCP KMS seal config here
-          config: |
-            ui = true
-            listener "tcp" {
-              address     = "0.0.0.0:8200"
-              tls_disable = true
-            }
-            storage "file" {
-              path = "/vault/data"
-            }
-            seal "gcpckms" {
-              project     = "bleachdle-web"
-              region      = "us-central1"
-              key_ring    = "vault-key-ring"
-              crypto_key  = "vault-key"
-              credentials = "/vault/config/gcp-creds.json"
-            }
-
-          # Environment vars to reference the credentials path
-          extraEnvironmentVars:
-            GCP_PROJECT: "bleachdle-web"
-            GCP_REGION: "us-central1"
-            GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
-
-          # Mount the GCP creds secret as a single file
+          # IMPORTANT: Put extraVolumes and extraVolumeMounts at the TOP LEVEL under 'server'
           extraVolumes:
             - name: vault-gcp-creds
               secret:
@@ -64,6 +33,37 @@ spec:
               mountPath: /vault/config/gcp-creds.json
               subPath: gcp-creds.json
               readOnly: true
+
+          standalone:
+            enabled: true
+            replicas: 1
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 100
+              runAsGroup: 100
+              fsGroup: 100
+
+            config: |
+              ui = true
+              listener "tcp" {
+                address     = "0.0.0.0:8200"
+                tls_disable = true
+              }
+              storage "file" {
+                path = "/vault/data"
+              }
+              seal "gcpckms" {
+                project     = "bleachdle-web"
+                region      = "us-central1"
+                key_ring    = "vault-key-ring"
+                crypto_key  = "vault-key"
+                credentials = "/vault/config/gcp-creds.json"
+              }
+
+            extraEnvironmentVars:
+              GCP_PROJECT: "bleachdle-web"
+              GCP_REGION: "us-central1"
+              GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
 
   destination:
     name: bleachdle-ephemeral
