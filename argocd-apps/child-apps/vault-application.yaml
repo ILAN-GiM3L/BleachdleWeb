@@ -18,7 +18,7 @@ spec:
           enabled: true
 
         server:
-          # Force HA off to avoid the statefulset
+          # Force HA off so we only deploy a Deployment (not a StatefulSet)
           ha:
             enabled: false
 
@@ -28,7 +28,7 @@ spec:
             config: |
               ui = true
               listener "tcp" {
-                address = "0.0.0.0:8200"
+                address     = "0.0.0.0:8200"
                 tls_disable = true
               }
               storage "file" {
@@ -42,20 +42,20 @@ spec:
                 credentials = "/vault/config/gcp-creds.json"
               }
 
-          extraEnvironmentVars:
-            GCP_PROJECT: "bleachdle-web"
-            GCP_REGION: "us-central1"
-            GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
+            extraEnvironmentVars:
+              GCP_PROJECT: "bleachdle-web"
+              GCP_REGION: "us-central1"
+              GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
 
-          extraVolumes:
-            - name: vault-gcp-creds
-              secret:
-                secretName: vault-gcp-creds
+            extraVolumes:
+              - name: vault-gcp-creds
+                secret:
+                  secretName: vault-gcp-creds
 
-          extraVolumeMounts:
-            - name: vault-gcp-creds
-              mountPath: /vault/config
-              readOnly: true
+            extraVolumeMounts:
+              - name: vault-gcp-creds
+                mountPath: /vault/config
+                readOnly: true
 
   destination:
     name: bleachdle-ephemeral
