@@ -6,15 +6,17 @@ metadata:
   namespace: argocd   # Must exist in the same cluster & namespace as Argo CD
 spec:
   project: default
+
   source:
-    repoURL: 'https://helm.releases.hashicorp.com'
-    targetRevision: "0.24.0"
+    repoURL: "https://helm.releases.hashicorp.com"
     chart: "vault"
+    targetRevision: "0.24.0"
     helm:
-      releaseName: vault
+      releaseName: "vault"
       values: |-
         injector:
           enabled: true
+
         server:
           ha:
             enabled: true
@@ -22,7 +24,7 @@ spec:
             config: |
               ui = true
               listener "tcp" {
-                address = "0.0.0.0:8200"
+                address     = "0.0.0.0:8200"
                 tls_disable = true
               }
               storage "file" {
@@ -35,21 +37,26 @@ spec:
                 crypto_key  = "vault-key"
                 credentials = "/vault/config/gcp-creds.json"
               }
+
           extraEnvironmentVars:
             GCP_PROJECT: "bleachdle-web"
             GCP_REGION: "us-central1"
             GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
+
           extraVolumes:
             - name: vault-gcp-creds
               secret:
                 secretName: vault-gcp-creds
+
           extraVolumeMounts:
             - name: vault-gcp-creds
               mountPath: /vault/config
               readOnly: true
+
   destination:
-    name: bleachdle-ephemeral  # reference ephemeral cluster by name
+    name: bleachdle-ephemeral  # references ephemeral cluster by name
     namespace: vault
+
   syncPolicy:
     automated:
       prune: true
