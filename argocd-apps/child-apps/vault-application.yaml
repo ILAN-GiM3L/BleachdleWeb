@@ -25,6 +25,14 @@ spec:
           standalone:
             enabled: true
             replicas: 1
+
+            # Add a securityContext so the Vault process (UID 100) can read mounted secrets
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 100
+              runAsGroup: 100
+              fsGroup: 100
+
             config: |
               ui = true
               listener "tcp" {
@@ -54,7 +62,10 @@ spec:
 
             extraVolumeMounts:
               - name: vault-gcp-creds
-                mountPath: /vault/config
+                # Instead of mounting the entire /vault/config directory,
+                # mount only one file as /vault/config/gcp-creds.json
+                mountPath: /vault/config/gcp-creds.json
+                subPath: gcp-creds.json
                 readOnly: true
 
   destination:
