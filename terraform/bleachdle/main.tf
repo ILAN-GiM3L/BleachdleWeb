@@ -167,6 +167,18 @@ resource "google_service_account_iam_binding" "allow_bleachdle_sa_impersonation"
   ]
 }
 
+resource "google_service_account_iam_binding" "allow_vault_sa_impersonation" {
+  service_account_id = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+  role               = "roles/iam.workloadIdentityUser"
+  members = [
+    "serviceAccount:${var.GCP_PROJECT}.svc.id.goog[vault/vault-sa]",
+  ]
+  depends_on = [
+    google_container_cluster.bleachdle_ephemeral
+  ]
+}
+
+
 ###############################################################################
 # KMS IAM: let terraform-admin@... do KMS
 ###############################################################################

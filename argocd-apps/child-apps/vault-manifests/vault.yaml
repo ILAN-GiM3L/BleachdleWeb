@@ -1,0 +1,147 @@
+########################################
+# 1) ServiceAccount for Vault (vault-sa)
+########################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-sa
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+---
+########################################
+# 2) ConfigMap for Vault Configuration
+########################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: vault
+data:
+  vault.hcl: |
+    ui = true
+
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_disable = 1
+    }
+
+    # GCP KMS for auto-unseal
+    seal "gcpckms" {
+      project    = "bleachdle-web"
+      region     = "us-central1"
+      key_ring   = "vault-key-ring"
+      crypto_key = "vault-key"
+    }
+
+    # HA Storage using Raft
+    storage "raft" {
+      path    = "/vault/data"
+      node_id = "vault-0"
+    }
+---
+########################################
+# 3) StatefulSet: Vault in HA Mode
+########################################
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+spec:
+  replicas: 1            # Increase to 3 for true HA
+  serviceName: vault-ha   # Headless service for stable network identities
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault
+    spec:
+      # Use vault-sa (in vault namespace)
+      serviceAccountName: vault-sa
+      volumes:
+        # Mount the Vault configuration from the ConfigMap
+        - name: config
+          configMap:
+            name: vault-config
+            items:
+              - key: vault.hcl
+                path: vault.hcl
+        # Mount the secret containing GCP credentials
+        - name: gcp-creds
+          secret:
+            secretName: vault-gcp-creds
+      containers:
+        - name: vault
+          image: "hashicorp/vault:1.14.1"
+          args: ["server", "-config=/vault/config/vault.hcl"]
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/etc/vault/gcp/gcp-creds.json"
+          volumeMounts:
+            - name: config
+              mountPath: /vault/config
+            - name: gcp-creds
+              mountPath: /etc/vault/gcp
+              readOnly: true
+            - name: data
+              mountPath: /vault/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: ""   # Set this if you use a specific storage class
+        resources:
+          requests:
+            storage: 10Gi
+---
+########################################
+# 4) Service to Expose Vault
+########################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault
+spec:
+  type: LoadBalancer   # Change to NodePort or ClusterIP as needed
+  ports:
+    - name: http
+      port: 8200
+      targetPort: 8200
+  selector:
+    app.kubernetes.io/name: vault
+---
+########################################
+# 5) RBAC for vault-sa in the vault namespace
+########################################
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vault-admin
+  namespace: vault
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-admin-binding
+  namespace: vault
+subjects:
+  - kind: ServiceAccount
+    name: vault-sa
+    namespace: vault
+roleRef:
+  kind: Role
+  name: vault-admin
+  apiGroup: rbac.authorization.k8s.io
