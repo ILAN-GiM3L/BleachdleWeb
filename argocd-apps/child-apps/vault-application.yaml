@@ -7,30 +7,35 @@ metadata:
 spec:
   project: default
   source:
-    # Points to the official HashiCorp Vault Helm chart (adjust version as needed).
     repoURL: "https://github.com/hashicorp/vault-helm.git"
+    # Use a specific chart version if desired (e.g., "v0.23.0").
     targetRevision: "v0.23.0"
     path: "."
     helm:
       releaseName: vault
       values: |
-        injector:
-          enabled: false
-
         server:
+          # Disable dev mode, enable single-instance standalone mode:
+          dev:
+            enabled: false
+          standalone:
+            enabled: true
           ha:
             enabled: false
 
-          # Create a small PersistentVolume for Vault data
+          # Provision a small volume for Vault data
           dataStorage:
             enabled: true
             size: 1Gi
 
-          # Set env var for GCP credentials
+          # Pass Vault auto-unseal flags as one single string (required by the chart)
+          extraArgs: "-config=/vault/config/config.json -seal=gcpckms -seal-gcpckms-project=bleachdle-web -seal-gcpckms-region=us-central1 -seal-gcpckms-key-ring=vault-key-ring -seal-gcpckms-crypto-key=vault-key"
+
+          # Export GCP credentials path
           extraEnvironmentVars:
             GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
 
-          # Mount the secret containing the GCP service account JSON
+          # Mount the secret that Jenkins creates (the GCP creds), so Vault can unseal
           extraVolumes:
             - name: gcp-creds
               secret:
@@ -40,14 +45,16 @@ spec:
               mountPath: /etc/vault/gcp
               readOnly: true
 
-          # IMPORTANT: Combine auto-unseal arguments into a single string
-          extraArgs: "-config=/vault/config/config.json -seal=gcpckms -seal-gcpckms-project=bleachdle-web -seal-gcpckms-region=us-central1 -seal-gcpckms-key-ring=vault-key-ring -seal-gcpckms-crypto-key=vault-key"
+        # Disable the official Vault Agent Injector since you run a separate sidecar approach
+        injector:
+          enabled: false
 
-  # Deploy onto the ephemeral cluster named "bleachdle-ephemeral"
+  # Deploy Vault into the ephemeral GKE cluster called "bleachdle-ephemeral"
   destination:
     name: bleachdle-ephemeral
     namespace: vault
 
+  # Sync automatically; prune any removed resources
   syncPolicy:
     automated:
       prune: true
