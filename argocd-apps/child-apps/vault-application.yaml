@@ -1,3 +1,4 @@
+# argocd-apps/child-apps/vault-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,80 +7,58 @@ metadata:
 spec:
   project: default
   source:
-    # Use the official HashiCorp Vault Helm chart repository. 
-    # You can pin a specific version or branch if you prefer.
+    # This repoURL points to the official HashiCorp Vault Helm chart.
+    # Feel free to lock in a specific version of the chart via "targetRevision"
+    # if you wish. The below example references "v0.23.0" at time of writing.
     repoURL: "https://github.com/hashicorp/vault-helm.git"
-    targetRevision: "v0.23.0" 
-    path: "."             # The root folder of the vault-helm repo
+    targetRevision: "v0.23.0"
+    path: "."
     helm:
-      releaseName: "vault"
+      releaseName: vault
       values: |
-        global:
-          # Enables common labeling
-          enabled: true
+        # Disable the Vault Injector since you have a separate agent sidecar approach
+        injector:
+          enabled: false
 
-        # ----------------------------------------------------------------------
-        # Vault Server configuration
-        # ----------------------------------------------------------------------
+        # Single server (non-HA) setup
         server:
-          # Run a "real" Vault server, not dev mode
-          dev:
-            enabled: false
-
-          # We won't enable HA or external data storage
           ha:
             enabled: false
-          dataStorage:
-            enabled: false
 
-          # Mount the GCP credentials secret for auto-unseal
+          # Create a 1Gi PersistentVolume to store Vault data
+          dataStorage:
+            enabled: true
+            size: 1Gi
+
+          # Vault will read GCP credentials from this file
+          extraEnvironmentVars:
+            GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
+
+          # Mount the secret that Jenkins creates (vault-gcp-creds)
           extraVolumes:
-            - name: vault-gcp-creds
+            - name: gcp-creds
               secret:
                 secretName: vault-gcp-creds
-                optional: false
           extraVolumeMounts:
-            - name: vault-gcp-creds
-              mountPath: /vault/config
+            - name: gcp-creds
+              mountPath: /etc/vault/gcp
               readOnly: true
 
-          # This is the Vault server configuration (vault.hcl).
-          # It enables UI, sets up the listener, and configures GCP KMS for auto-unseal.
-          config: |
-            ui = true
+          # Auto-unseal with GCP KMS
+          extraArgs:
+            - "-config=/vault/config/config.json"
+            - "-seal=gcpckms"
+            - "-seal-gcpckms-project=bleachdle-web"
+            - "-seal-gcpckms-region=us-central1"
+            - "-seal-gcpckms-key-ring=vault-key-ring"
+            - "-seal-gcpckms-crypto-key=vault-key"
 
-            listener "tcp" {
-              address     = "0.0.0.0:8200"
-              tls_disable = 1
-            }
-
-            # GCP KMS auto-unseal block:
-            seal "gcpckms" {
-              project     = "bleachdle-web"
-              region      = "us-central1"
-              key_ring    = "vault-key-ring"
-              crypto_key  = "vault-key"
-              # Matches the Jenkins pipeline's secretMount path
-              credentials = "/vault/config/gcp-creds.json"
-            }
-
-            # Adjust the addresses to match your environment
-            api_addr     = "http://vault.vault.svc:8200"
-            cluster_addr = "https://vault.vault.svc:8201"
-
-  # --------------------------------------------------------------------------
-  # Destination: ephemeral cluster, in the "vault" namespace
-  # (Your Jenkins pipeline has code that registers the ephemeral cluster
-  #  under the name "bleachdle-ephemeral".)
-  # --------------------------------------------------------------------------
+  # We deploy Vault into the ephemeral cluster named "bleachdle-ephemeral"
   destination:
-    name: "bleachdle-ephemeral"
-    namespace: "vault"
+    name: bleachdle-ephemeral
+    namespace: vault
 
-  # --------------------------------------------------------------------------
-  # Sync automatically: if anything changes, Argo CD prunes old resources
-  # and self-heals if resources drift.
-  # --------------------------------------------------------------------------
+  # Auto-sync & self-heal ensures that if anything drifts, Argo CD corrects it.
   syncPolicy:
     automated:
       prune: true
