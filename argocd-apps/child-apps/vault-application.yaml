@@ -7,34 +7,30 @@ metadata:
 spec:
   project: default
   source:
-    # This repoURL points to the official HashiCorp Vault Helm chart.
-    # Feel free to lock in a specific version of the chart via "targetRevision"
-    # if you wish. The below example references "v0.23.0" at time of writing.
+    # Points to the official HashiCorp Vault Helm chart (adjust version as needed).
     repoURL: "https://github.com/hashicorp/vault-helm.git"
     targetRevision: "v0.23.0"
     path: "."
     helm:
       releaseName: vault
       values: |
-        # Disable the Vault Injector since you have a separate agent sidecar approach
         injector:
           enabled: false
 
-        # Single server (non-HA) setup
         server:
           ha:
             enabled: false
 
-          # Create a 1Gi PersistentVolume to store Vault data
+          # Create a small PersistentVolume for Vault data
           dataStorage:
             enabled: true
             size: 1Gi
 
-          # Vault will read GCP credentials from this file
+          # Set env var for GCP credentials
           extraEnvironmentVars:
             GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
 
-          # Mount the secret that Jenkins creates (vault-gcp-creds)
+          # Mount the secret containing the GCP service account JSON
           extraVolumes:
             - name: gcp-creds
               secret:
@@ -44,21 +40,14 @@ spec:
               mountPath: /etc/vault/gcp
               readOnly: true
 
-          # Auto-unseal with GCP KMS
-          extraArgs:
-            - "-config=/vault/config/config.json"
-            - "-seal=gcpckms"
-            - "-seal-gcpckms-project=bleachdle-web"
-            - "-seal-gcpckms-region=us-central1"
-            - "-seal-gcpckms-key-ring=vault-key-ring"
-            - "-seal-gcpckms-crypto-key=vault-key"
+          # IMPORTANT: Combine auto-unseal arguments into a single string
+          extraArgs: "-config=/vault/config/config.json -seal=gcpckms -seal-gcpckms-project=bleachdle-web -seal-gcpckms-region=us-central1 -seal-gcpckms-key-ring=vault-key-ring -seal-gcpckms-crypto-key=vault-key"
 
-  # We deploy Vault into the ephemeral cluster named "bleachdle-ephemeral"
+  # Deploy onto the ephemeral cluster named "bleachdle-ephemeral"
   destination:
     name: bleachdle-ephemeral
     namespace: vault
 
-  # Auto-sync & self-heal ensures that if anything drifts, Argo CD corrects it.
   syncPolicy:
     automated:
       prune: true
