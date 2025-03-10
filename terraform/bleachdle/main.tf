@@ -47,11 +47,20 @@ resource "google_kms_crypto_key" "vault_key" {
   purpose         = "ENCRYPT_DECRYPT"
 }
 
+# 1. Allow the Kubernetes service account (bleachdle-sa) to impersonate terraform-admin service account
+resource "google_iam_policy_binding" "bleachdle_sa_impersonation" {
+  role    = "roles/iam.serviceAccountTokenCreator"
+  members = [
+    "serviceAccount:bleachdle-sa@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+  ]
+  resource = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+}
 
-resource "google_kms_crypto_key_iam_member" "vault_key_permissions" {
+# 2. Grant KMS Crypto Key Encrypter/Decrypter permissions to the Kubernetes service account (bleachdle-sa)
+resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_permissions" {
   crypto_key_id = google_kms_crypto_key.vault_key.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:terraform-admin@bleachdle-web.iam.gserviceaccount.com"
+  member        = "serviceAccount:bleachdle-sa@${var.GCP_PROJECT}.iam.gserviceaccount.com"
 }
 
 

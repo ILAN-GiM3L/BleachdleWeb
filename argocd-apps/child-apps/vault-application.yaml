@@ -48,7 +48,7 @@ spec:
 
             # Mount the GCP service account file from our Secret
             extraEnvironmentVars:
-              GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp/gcp-creds.json"  # Updated path
+              GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
 
             extraVolumes:
               - name: gcp-creds
@@ -57,7 +57,7 @@ spec:
 
             extraVolumeMounts:
               - name: gcp-creds
-                mountPath: /vault/gcp  # Updated mount path
+                mountPath: /etc/vault/gcp
                 readOnly: true
 
         # Disable the Vault Agent Injector if you're using a sidecar approach
