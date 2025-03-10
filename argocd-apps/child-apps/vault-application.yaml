@@ -1,4 +1,3 @@
-# argocd-apps/child-apps/vault-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -8,48 +7,36 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/hashicorp/vault-helm.git"
-    targetRevision: "v0.23.0"   # Adjust if desired
+    targetRevision: "v0.23.0"
     path: "."
     helm:
       releaseName: vault
-      values: |
+      values: |   # <-- Start an inline YAML block for our overrides
         server:
-          # Disable dev mode, enable single-instance (standalone) mode
           dev:
             enabled: false
 
-          # Single-instance config block
           standalone:
             enabled: true
             config: |
               ui = true
-
               listener "tcp" {
                 address     = "[::]:8200"
                 tls_disable = 1
               }
-
-              # GCP KMS seal stanza
               seal "gcpckms" {
-                project     = "bleachdle-web"
-                region      = "us-central1"
-                key_ring    = "vault-key-ring"
-                crypto_key  = "vault-key"
+                project    = "bleachdle-web"
+                region     = "us-central1"
+                key_ring   = "vault-key-ring"
+                crypto_key = "vault-key"
               }
-
-              # Store data on the local filesystem (within this pod's PV)
               storage "file" {
                 path = "/vault/data"
               }
-
-            # Provision a small PersistentVolumeClaim for Vault data
             dataStorage:
               enabled: true
-              size: 1Gi
+              size: 10Gi
 
-          # ------------------------------
-          # MOUNT THE GCP CREDENTIALS HERE
-          # ------------------------------
           extraEnvironmentVars:
             GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
 
@@ -63,16 +50,13 @@ spec:
               mountPath: /etc/vault/gcp
               readOnly: true
 
-        # Disable the Vault Agent Injector if you're using a sidecar approach
         injector:
           enabled: false
 
-  # Deploys Vault to the ephemeral cluster named "bleachdle-ephemeral"
   destination:
     name: bleachdle-ephemeral
     namespace: vault
 
-  # Auto-sync & self-heal keeps Vault in sync
   syncPolicy:
     automated:
       prune: true
