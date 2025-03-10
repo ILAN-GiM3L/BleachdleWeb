@@ -181,15 +181,16 @@ resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_permissions" {
 }
 
 # If you need broader KMS privileges, uncomment & update:
-# resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_admin_permissions" {
-#   crypto_key_id = google_kms_crypto_key.vault_key.id
-#   role          = "roles/cloudkms.admin"
-#   member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
-#
-#   depends_on = [
-#     google_kms_crypto_key.vault_key
-#   ]
-# }
+resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_admin_permissions" {
+  crypto_key_id = google_kms_crypto_key.vault_key.id
+  role          = "roles/cloudkms.admin"
+  member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+
+  depends_on = [
+    google_kms_crypto_key.vault_key
+  ]
+}
+
 
 ###############################################################################
 # K8S & HELM providers

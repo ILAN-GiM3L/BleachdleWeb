@@ -17,9 +17,10 @@ spec:
           # Disable dev mode, enable single-instance (standalone) mode
           dev:
             enabled: false
+
+          # Single-instance config block
           standalone:
             enabled: true
-            # This inline config block is the recommended way to set up auto-unseal
             config: |
               ui = true
 
@@ -46,19 +47,21 @@ spec:
               enabled: true
               size: 1Gi
 
-            # Mount the GCP service account file from our Secret
-            extraEnvironmentVars:
-              GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
+          # ------------------------------
+          # MOUNT THE GCP CREDENTIALS HERE
+          # ------------------------------
+          extraEnvironmentVars:
+            GOOGLE_APPLICATION_CREDENTIALS: "/etc/vault/gcp/gcp-creds.json"
 
-            extraVolumes:
-              - name: gcp-creds
-                secret:
-                  secretName: vault-gcp-creds
+          extraVolumes:
+            - name: gcp-creds
+              secret:
+                secretName: vault-gcp-creds
 
-            extraVolumeMounts:
-              - name: gcp-creds
-                mountPath: /etc/vault/gcp
-                readOnly: true
+          extraVolumeMounts:
+            - name: gcp-creds
+              mountPath: /etc/vault/gcp
+              readOnly: true
 
         # Disable the Vault Agent Injector if you're using a sidecar approach
         injector:
