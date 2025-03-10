@@ -1,0 +1,30 @@
+# vault-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: "https://github.com/hashicorp/vault-helm.git"
+    targetRevision: "v0.23.0"
+    path: "."          # The chart is at the root of the repo. 
+                       # This is correct for https://github.com/hashicorp/vault-helm.git
+    helm:
+      releaseName: vault
+      # Instead of "values: | ...", we reference a separate file:
+      valueFiles:
+        - vault-values.yaml
+
+  # Where to deploy (the ephemeral cluster you registered)
+  destination:
+    name: bleachdle-ephemeral
+    namespace: vault
+
+  # Auto-sync so Argo will keep Vault up to date
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
