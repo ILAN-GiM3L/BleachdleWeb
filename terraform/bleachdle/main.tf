@@ -29,17 +29,48 @@ terraform {
   required_version = ">= 1.0.0"
 }
 
+###############################################################################
+# Enable Required GCP Services
+###############################################################################
+resource "google_project_service" "enable_container" {
+  project = var.GCP_PROJECT
+  service = "container.googleapis.com"
+}
+
+resource "google_project_service" "enable_iam" {
+  project = var.GCP_PROJECT
+  service = "iam.googleapis.com"
+}
+
+resource "google_project_service" "enable_iam_credentials" {
+  project = var.GCP_PROJECT
+  service = "iamcredentials.googleapis.com"
+}
+
+resource "google_project_service" "enable_kms" {
+  project = var.GCP_PROJECT
+  service = "cloudkms.googleapis.com"
+}
+
+###############################################################################
+# Google Provider
+###############################################################################
 provider "google" {
   project = var.GCP_PROJECT
   region  = var.GCP_REGION
 }
 
-##############################
-# KMS
-##############################
+###############################################################################
+# KMS: Key Ring & Crypto Key
+###############################################################################
 resource "google_kms_key_ring" "vault_key_ring" {
   name     = "vault-key-ring"
   location = var.GCP_REGION
+
+  # Make sure KMS API is enabled before creating the Key Ring
+  depends_on = [
+    google_project_service.enable_kms
+  ]
 }
 
 resource "google_kms_crypto_key" "vault_key" {
@@ -47,11 +78,15 @@ resource "google_kms_crypto_key" "vault_key" {
   key_ring        = google_kms_key_ring.vault_key_ring.id
   rotation_period = "100000s"
   purpose         = "ENCRYPT_DECRYPT"
+
+  depends_on = [
+    google_kms_key_ring.vault_key_ring
+  ]
 }
 
-##############################
-# GKE: ephemeral cluster
-##############################
+###############################################################################
+# GKE: ephemeral cluster w/ Workload Identity
+###############################################################################
 resource "google_container_cluster" "bleachdle_ephemeral" {
   name                     = "bleachdle-cluster"
   location                 = var.GCP_REGION
@@ -75,6 +110,13 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
   workload_identity_config {
     workload_pool = "${var.GCP_PROJECT}.svc.id.goog"
   }
+
+  # Ensure container/IAM APIs are enabled before cluster creation
+  depends_on = [
+    google_project_service.enable_container,
+    google_project_service.enable_iam,
+    google_project_service.enable_iam_credentials
+  ]
 }
 
 resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
@@ -101,64 +143,78 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
     auto_upgrade = true
     auto_repair  = true
   }
+
+  depends_on = [
+    google_container_cluster.bleachdle_ephemeral
+  ]
 }
 
-##############################
+###############################################################################
 # Workload Identity Binding
-##############################
-# This allows your K8s SA (in the default namespace) to act as
-# terraform-admin@bleachdle-web.iam.gserviceaccount.com
-# by granting roles/iam.workloadIdentityUser on that GCP SA.
-#
-# NOTE: The "member" is set to:
-#   "serviceAccount:<PROJECT>.svc.id.goog[<NAMESPACE>/<K8S_SA>]"
-# ...matching the annotation we added to the SA in the Helm chart.
-##############################
-
+###############################################################################
+# Binds bleachdle-sa (K8s) -> terraform-admin GCP SA for impersonation
+###############################################################################
 resource "google_service_account_iam_binding" "allow_bleachdle_sa_impersonation" {
   service_account_id = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
   role               = "roles/iam.workloadIdentityUser"
   members = [
     "serviceAccount:${var.GCP_PROJECT}.svc.id.goog[default/bleachdle-sa]",
   ]
+
+  # Wait until the cluster identity pool is fully created
+  depends_on = [
+    google_container_cluster.bleachdle_ephemeral
+  ]
 }
 
-
-##############################
+###############################################################################
 # KMS IAM: let terraform-admin@... do KMS
-##############################
-# If you also want the same GCP SA to have wide KMS perms:
-# you already have it as an Owner, but here’s an example if you want a more minimal approach:
+###############################################################################
 resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_permissions" {
   crypto_key_id = google_kms_crypto_key.vault_key.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+
+  depends_on = [
+    google_kms_crypto_key.vault_key
+  ]
 }
 
-# Optional: If you want even broader KMS admin capabilities:
+# If you need broader KMS privileges, uncomment & update:
 # resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_admin_permissions" {
 #   crypto_key_id = google_kms_crypto_key.vault_key.id
 #   role          = "roles/cloudkms.admin"
 #   member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+#
+#   depends_on = [
+#     google_kms_crypto_key.vault_key
+#   ]
 # }
 
-##############################
+###############################################################################
 # K8S & HELM providers
-##############################
+###############################################################################
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
-  cluster_ca_certificate = base64decode(google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(
+    google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate
+  )
   token                  = data.google_client_config.default.access_token
 }
 
 provider "helm" {
   kubernetes {
     host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
-    cluster_ca_certificate = base64decode(google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(
+      google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate
+    )
     token                  = data.google_client_config.default.access_token
   }
 }
 
+###############################################################################
+# Data Source: google_client_config
+###############################################################################
 data "google_client_config" "default" {}
 
 ###############################################################################
