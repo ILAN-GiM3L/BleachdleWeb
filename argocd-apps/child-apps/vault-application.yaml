@@ -22,21 +22,11 @@ spec:
           ha:
             enabled: false
 
-          # IMPORTANT: Put extraVolumes and extraVolumeMounts at the TOP LEVEL under 'server'
-          extraVolumes:
-            - name: vault-gcp-creds
-              secret:
-                secretName: vault-gcp-creds
-
-          extraVolumeMounts:
-            - name: vault-gcp-creds
-              mountPath: /vault/config/gcp-creds.json
-              subPath: gcp-creds.json
-              readOnly: true
-
           standalone:
             enabled: true
             replicas: 1
+
+            # Add a securityContext so the Vault process (UID 100) can read mounted secrets
             securityContext:
               runAsNonRoot: true
               runAsUser: 100
@@ -57,13 +47,26 @@ spec:
                 region      = "us-central1"
                 key_ring    = "vault-key-ring"
                 crypto_key  = "vault-key"
-                credentials = "/vault/config/gcp-creds.json"
+                credentials = "/vault/gcp-creds/gcp-creds.json"
               }
 
             extraEnvironmentVars:
               GCP_PROJECT: "bleachdle-web"
               GCP_REGION: "us-central1"
-              GOOGLE_APPLICATION_CREDENTIALS: "/vault/config/gcp-creds.json"
+              GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
+
+            extraVolumes:
+              - name: vault-gcp-creds
+                secret:
+                  secretName: vault-gcp-creds
+
+            extraVolumeMounts:
+              - name: vault-gcp-creds
+                # Instead of mounting the entire /vault/config directory,
+                # mount only one file as /vault/config/gcp-creds.json
+                mountPath: /vault/gcp-creds/gcp-creds.json
+                subPath: gcp-creds.json
+                readOnly: true
 
   destination:
     name: bleachdle-ephemeral
