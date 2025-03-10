@@ -18,7 +18,7 @@ spec:
           enabled: true
 
         server:
-          # Force HA off so we only deploy a Deployment (not a StatefulSet)
+          # Disable HA so that a Deployment is used instead of a StatefulSet.
           ha:
             enabled: false
 
@@ -26,13 +26,14 @@ spec:
             enabled: true
             replicas: 1
 
-            # Add a securityContext so the Vault process (UID 100) can read mounted secrets
+            # Security context so that Vault (UID 100) can access files.
             securityContext:
               runAsNonRoot: true
               runAsUser: 100
               runAsGroup: 100
               fsGroup: 100
 
+            # Vault configuration
             config: |
               ui = true
               listener "tcp" {
@@ -50,23 +51,39 @@ spec:
                 credentials = "/vault/gcp-creds/gcp-creds.json"
               }
 
+            # Set environment variable for Google credentials
             extraEnvironmentVars:
               GCP_PROJECT: "bleachdle-web"
               GCP_REGION: "us-central1"
               GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
 
+            # Define an emptyDir volume where the credentials file will be written.
             extraVolumes:
-              - name: vault-gcp-creds
-                secret:
-                  secretName: vault-gcp-creds
+              - name: creds-volume
+                emptyDir: {}
 
+            # Use an init container to copy the secret content from an env var into the shared volume.
+            initContainers:
+              - name: write-gcp-creds
+                image: busybox
+                command:
+                  - sh
+                  - -c
+                  - 'echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json'
+                env:
+                  - name: GCP_CREDS
+                    valueFrom:
+                      secretKeyRef:
+                        name: vault-gcp-creds
+                        key: gcp-creds.json
+                volumeMounts:
+                  - name: creds-volume
+                    mountPath: /vault/gcp-creds
+
+            # Mount the shared volume in the main container.
             extraVolumeMounts:
-              - name: vault-gcp-creds
-                # Instead of mounting the entire /vault/config directory,
-                # mount only one file as /vault/config/gcp-creds.json
-                mountPath: /vault/gcp-creds/gcp-creds.json
-                subPath: gcp-creds.json
-                readOnly: true
+              - name: creds-volume
+                mountPath: /vault/gcp-creds
 
   destination:
     name: bleachdle-ephemeral
