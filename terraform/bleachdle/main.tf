@@ -116,12 +116,13 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 ##############################
 
 resource "google_service_account_iam_binding" "allow_bleachdle_sa_impersonation" {
-  service_account_id = "terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
+  service_account_id = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
   role               = "roles/iam.workloadIdentityUser"
   members = [
     "serviceAccount:${var.GCP_PROJECT}.svc.id.goog[default/bleachdle-sa]",
   ]
 }
+
 
 ##############################
 # KMS IAM: let terraform-admin@... do KMS
