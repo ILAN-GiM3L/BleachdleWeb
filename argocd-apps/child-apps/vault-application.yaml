@@ -13,29 +13,23 @@ spec:
     targetRevision: "0.24.0"
     helm:
       releaseName: "vault"
-
       values: |-
+        # Enable the Vault injector (sidecar)
         injector:
           enabled: true
 
+        # Main Vault server settings:
         server:
-          # Disable HA so that a Deployment is used (instead of a StatefulSet).
-          # Equivalent to `standalone` mode in the HashiCorp chart.
+          # We want a single-node "standalone" setup, so disable HA:
           ha:
             enabled: false
 
+          # Enable the standalone approach with a single replica
           standalone:
             enabled: true
             replicas: 1
 
-            # Security context so Vault (UID 100) can access files
-            securityContext:
-              runAsNonRoot: true
-              runAsUser: 100
-              runAsGroup: 100
-              fsGroup: 100
-
-            # Vault configuration
+            # This is your Vault configuration, merged into the final ConfigMap
             config: |
               ui = true
               listener "tcp" {
@@ -53,45 +47,45 @@ spec:
                 credentials = "/vault/gcp-creds/gcp-creds.json"
               }
 
-            # This is the CORRECT way to specify extra environment variables in Vault Helm chart 0.24.0
-            extraEnv:
-              - name: GCP_PROJECT
-                value: "bleachdle-web"
-              - name: GCP_REGION
-                value: "us-central1"
-              - name: GOOGLE_APPLICATION_CREDENTIALS
-                value: "/vault/gcp-creds/gcp-creds.json"
+          # =====  Everything below goes at the *server* level =====
+          # Extra environment variables for the main Vault container
+          extraEnv:
+            - name: GCP_PROJECT
+              value: "bleachdle-web"
+            - name: GCP_REGION
+              value: "us-central1"
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: "/vault/gcp-creds/gcp-creds.json"
 
-            # Correct way to specify an additional Init Container
-            extraInitContainers:
-              - name: write-gcp-creds
-                image: busybox
-                command:
-                  - sh
-                  - -c
-                  - 'echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json'
-                env:
-                  - name: GCP_CREDS
-                    valueFrom:
-                      secretKeyRef:
-                        name: vault-gcp-creds
-                        key: gcp-creds.json
-                volumeMounts:
-                  - name: creds-volume
-                    mountPath: /vault/gcp-creds
+          # An init container that writes your GCP creds into an emptyDir volume
+          extraInitContainers:
+            - name: write-gcp-creds
+              image: busybox
+              command:
+                - sh
+                - -c
+                - 'echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json'
+              env:
+                - name: GCP_CREDS
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-gcp-creds    # Must match the Secret you created
+                      key: gcp-creds.json
+              volumeMounts:
+                - name: creds-volume
+                  mountPath: /vault/gcp-creds
 
-            # Correct way to define additional Volumes
-            extraVolumes:
-              - name: creds-volume
-                emptyDir: {}
+          # An emptyDir volume to hold that credentials file
+          extraVolumes:
+            - name: creds-volume
+              emptyDir: {}
 
-            # Correct way to mount those Volumes in the main Vault container
-            extraVolumeMounts:
-              - name: creds-volume
-                mountPath: /vault/gcp-creds
+          # Mount that volume inside the primary Vault container
+          extraVolumeMounts:
+            - name: creds-volume
+              mountPath: /vault/gcp-creds
 
   destination:
-    # Name must match however ArgoCD registered this cluster
     name: bleachdle-ephemeral
     namespace: vault
 
