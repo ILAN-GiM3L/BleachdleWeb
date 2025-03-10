@@ -57,19 +57,17 @@ spec:
               GCP_REGION: "us-central1"
               GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
 
-            # Define an emptyDir volume where the credentials file will be written.
+            # AUTOMATED GCP CREDS MOUNTING:
+            # Define an emptyDir volume to hold the credentials file.
             extraVolumes:
               - name: creds-volume
                 emptyDir: {}
 
-            # Use an init container to copy the secret content from an env var into the shared volume.
+            # Use an init container to write the GCP credentials from the secret into the shared volume.
             initContainers:
               - name: write-gcp-creds
                 image: busybox
-                command:
-                  - sh
-                  - -c
-                  - 'echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json'
+                command: ["sh", "-c", "echo \"$GCP_CREDS\" > /vault/gcp-creds/gcp-creds.json"]
                 env:
                   - name: GCP_CREDS
                     valueFrom:
@@ -80,7 +78,7 @@ spec:
                   - name: creds-volume
                     mountPath: /vault/gcp-creds
 
-            # Mount the shared volume in the main container.
+            # Mount the shared volume in the main Vault container.
             extraVolumeMounts:
               - name: creds-volume
                 mountPath: /vault/gcp-creds
