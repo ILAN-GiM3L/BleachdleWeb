@@ -18,6 +18,7 @@ spec:
           enabled: true
 
         server:
+          # Disable HA so that a Deployment/StatefulSet is used.
           ha:
             enabled: false
 
@@ -45,17 +46,23 @@ spec:
                 crypto_key  = "vault-key"
                 credentials = "/vault/gcp-creds/gcp-creds.json"
               }
-          extraEnvironmentVars:
-            GCP_PROJECT: "bleachdle-web"
-            GCP_REGION: "us-central1"
-            GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
+            extraEnvironmentVars:
+              GCP_PROJECT: "bleachdle-web"
+              GCP_REGION: "us-central1"
+              GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
+
+          # Moved out of the standalone block for proper rendering:
           extraVolumes:
             - name: creds-volume
               emptyDir: {}
           initContainers:
             - name: write-gcp-creds
               image: busybox
-              command: ["sh", "-c", "echo \"$GCP_CREDS\" > /vault/gcp-creds/gcp-creds.json"]
+              command:
+                - sh
+                - -c
+                - |
+                  echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json
               env:
                 - name: GCP_CREDS
                   valueFrom:
