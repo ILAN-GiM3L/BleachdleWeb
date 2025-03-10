@@ -13,23 +13,29 @@ spec:
     targetRevision: "0.24.0"
     helm:
       releaseName: "vault"
+
       values: |-
         injector:
           enabled: true
 
         server:
-          # Disable HA so that a Deployment/StatefulSet is used.
+          # Disable HA so that a Deployment is used (instead of a StatefulSet).
+          # Equivalent to `standalone` mode in the HashiCorp chart.
           ha:
             enabled: false
 
           standalone:
             enabled: true
             replicas: 1
+
+            # Security context so Vault (UID 100) can access files
             securityContext:
               runAsNonRoot: true
               runAsUser: 100
               runAsGroup: 100
               fsGroup: 100
+
+            # Vault configuration
             config: |
               ui = true
               listener "tcp" {
@@ -46,37 +52,46 @@ spec:
                 crypto_key  = "vault-key"
                 credentials = "/vault/gcp-creds/gcp-creds.json"
               }
-            extraEnvironmentVars:
-              GCP_PROJECT: "bleachdle-web"
-              GCP_REGION: "us-central1"
-              GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
 
-          # Moved out of the standalone block for proper rendering:
-          extraVolumes:
-            - name: creds-volume
-              emptyDir: {}
-          initContainers:
-            - name: write-gcp-creds
-              image: busybox
-              command:
-                - sh
-                - -c
-                - |
-                  echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json
-              env:
-                - name: GCP_CREDS
-                  valueFrom:
-                    secretKeyRef:
-                      name: vault-gcp-creds
-                      key: gcp-creds.json
-              volumeMounts:
-                - name: creds-volume
-                  mountPath: /vault/gcp-creds
-          extraVolumeMounts:
-            - name: creds-volume
-              mountPath: /vault/gcp-creds
+            # This is the CORRECT way to specify extra environment variables in Vault Helm chart 0.24.0
+            extraEnv:
+              - name: GCP_PROJECT
+                value: "bleachdle-web"
+              - name: GCP_REGION
+                value: "us-central1"
+              - name: GOOGLE_APPLICATION_CREDENTIALS
+                value: "/vault/gcp-creds/gcp-creds.json"
+
+            # Correct way to specify an additional Init Container
+            extraInitContainers:
+              - name: write-gcp-creds
+                image: busybox
+                command:
+                  - sh
+                  - -c
+                  - 'echo "$GCP_CREDS" > /vault/gcp-creds/gcp-creds.json'
+                env:
+                  - name: GCP_CREDS
+                    valueFrom:
+                      secretKeyRef:
+                        name: vault-gcp-creds
+                        key: gcp-creds.json
+                volumeMounts:
+                  - name: creds-volume
+                    mountPath: /vault/gcp-creds
+
+            # Correct way to define additional Volumes
+            extraVolumes:
+              - name: creds-volume
+                emptyDir: {}
+
+            # Correct way to mount those Volumes in the main Vault container
+            extraVolumeMounts:
+              - name: creds-volume
+                mountPath: /vault/gcp-creds
 
   destination:
+    # Name must match however ArgoCD registered this cluster
     name: bleachdle-ephemeral
     namespace: vault
 
