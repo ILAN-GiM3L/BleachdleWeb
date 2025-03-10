@@ -47,6 +47,16 @@ resource "google_kms_crypto_key" "vault_key" {
   purpose         = "ENCRYPT_DECRYPT"
 }
 
+
+resource "google_kms_crypto_key_iam_member" "vault_key_permissions" {
+  crypto_key_id = google_kms_crypto_key.vault_key.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:terraform-admin@bleachdle-web.iam.gserviceaccount.com"
+}
+
+
+
+
 data "google_client_config" "default" {}
 
 
