@@ -303,25 +303,20 @@ pipeline {
             }
         }
 
-        stage('Wait for Bleachdle to be Deployed') {
+        stage('Wait for Vault to be Deployed') {
             steps {
                 script {
                     withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
                         sh """
-                            cd terraform/bleachdle
-                            export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
-                            gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
-                            gcloud container clusters get-credentials bleachdle-cluster --region "${GCP_REGION}"
-                            
-                            echo "Waiting up to 2 minutes for bleachdle-sa to appear..."
+                            echo "Waiting up to 2 minutes for vault-sa token secret in the vault namespace..."
                             COUNT=0
                             while [ \$COUNT -lt 12 ]; do
-                                SA_SECRET=\$(kubectl get secret -n default | grep 'bleachdle-sa-token' || true)
-                                if [ -n "\$SA_SECRET" ]; then
-                                    echo "bleachdle-sa secret found!"
+                                VAULT_SECRET=\$(kubectl get secret -n vault | grep 'vault-sa-token' || true)
+                                if [ -n "\$VAULT_SECRET" ]; then
+                                    echo "vault-sa secret found in vault namespace!"
                                     break
                                 else
-                                    echo "bleachdle-sa secret not found yet..."
+                                    echo "vault-sa secret not found yet..."
                                     sleep 10
                                     COUNT=\$((COUNT+1))
                                 fi
@@ -331,6 +326,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Initialize & Configure Vault') {
             steps {
@@ -360,7 +356,7 @@ pipeline {
                             sleep 5
                         """
 
-                        // 4) Initialize Vault if not already done
+                        // Initialize Vault if not already done
                         sh """
                             export VAULT_ADDR="http://127.0.0.1:8200"
                             set +e
@@ -382,45 +378,34 @@ pipeline {
                             fi
                         """
 
-                        // 5) Now set up bleachdle-policy, add secrets, etc.
+                        // Retrieve the vault-sa token from the vault namespace (if needed for configuring Vault auth)
                         sh """
-                            export VAULT_ADDR="http://127.0.0.1:8200"
-
-                            echo "[Vault] Writing bleachdle-policy..."
-                            vault policy write bleachdle-policy - <<EOF
-path "bleach/data/app" {
-  capabilities = ["create", "update", "read", "list", "delete"]
-}
-EOF
-
-                            echo "[Vault] Creating secrets at bleach/data/app..."
-                            vault kv put bleach/data/app \\
-                                db_host="35.246.242.114" \\
-                                db_user="root" \\
-                                db_password="GeverYozem10072003" \\
-                                db_name="Bleach_DB" \\
-                                api_url="https://bleachdle-web.oa.r.appspot.com"
+                            echo "[Vault] Retrieving vault-sa token..."
+                            VAULT_SA_SECRET_NAME=\$(kubectl get secret -n vault | grep 'vault-sa-token' | awk '{print \$1}')
+                            VAULT_SA_JWT=\$(kubectl get secret "\$VAULT_SA_SECRET_NAME" -n vault -o jsonpath='{.data.token}' | base64 --decode)
+                            echo "vault-sa token retrieved: \$VAULT_SA_JWT"
+                            # You can use this token if needed for further configuration.
                         """
 
-                        // 6) **Enable & Configure Kubernetes Auth**
+                        // Configure Kubernetes auth in Vault to map the default/bleachdle-sa to a Vault policy
                         sh """
-                            echo "[Vault] Enabling Kubernetes auth method..."
                             export VAULT_ADDR="http://127.0.0.1:8200"
+                            echo "[Vault] Enabling Kubernetes auth method..."
                             vault auth enable kubernetes || true
 
-                            echo "[Vault] Retrieving bleachdle-sa token..."
+                            echo "[Vault] Retrieving bleachdle-sa token from default namespace..."
                             SA_SECRET_NAME=\$(kubectl get secret -n default | grep 'bleachdle-sa-token' | awk '{print \$1}')
                             SA_JWT_TOKEN=\$(kubectl get secret "\$SA_SECRET_NAME" -n default -o jsonpath='{.data.token}' | base64 --decode)
                             KUBE_CA_CERT=\$(kubectl get secret "\$SA_SECRET_NAME" -n default -o jsonpath='{.data.ca\\.crt}' | base64 --decode)
 
-                            echo "[Vault] Configuring auth/kubernetes config..."
+                            echo "[Vault] Configuring Kubernetes auth..."
                             vault write auth/kubernetes/config \\
                                 token_reviewer_jwt="\$SA_JWT_TOKEN" \\
                                 kubernetes_host="https://kubernetes.default.svc" \\
                                 kubernetes_ca_cert="\$KUBE_CA_CERT" \\
                                 issuer="https://kubernetes.default.svc.cluster.local"
 
-                            echo "[Vault] Creating bleachdle-role to map bleachdle-sa -> bleachdle-policy..."
+                            echo "[Vault] Creating bleachdle-role to map bleachdle-sa (default) to bleachdle-policy..."
                             vault write auth/kubernetes/role/bleachdle-role \\
                                 bound_service_account_names=bleachdle-sa \\
                                 bound_service_account_namespaces=default \\
