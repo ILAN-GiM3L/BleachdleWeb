@@ -18,22 +18,17 @@ spec:
           enabled: true
 
         server:
-          # Disable HA so that a Deployment is used instead of a StatefulSet.
           ha:
             enabled: false
 
           standalone:
             enabled: true
             replicas: 1
-
-            # Security context so that Vault (UID 100) can access files.
             securityContext:
               runAsNonRoot: true
               runAsUser: 100
               runAsGroup: 100
               fsGroup: 100
-
-            # Vault configuration
             config: |
               ui = true
               listener "tcp" {
@@ -50,38 +45,29 @@ spec:
                 crypto_key  = "vault-key"
                 credentials = "/vault/gcp-creds/gcp-creds.json"
               }
-
-            # Set environment variable for Google credentials
-            extraEnvironmentVars:
-              GCP_PROJECT: "bleachdle-web"
-              GCP_REGION: "us-central1"
-              GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
-
-            # AUTOMATED GCP CREDS MOUNTING:
-            # Define an emptyDir volume to hold the credentials file.
-            extraVolumes:
-              - name: creds-volume
-                emptyDir: {}
-
-            # Use an init container to write the GCP credentials from the secret into the shared volume.
-            initContainers:
-              - name: write-gcp-creds
-                image: busybox
-                command: ["sh", "-c", "echo \"$GCP_CREDS\" > /vault/gcp-creds/gcp-creds.json"]
-                env:
-                  - name: GCP_CREDS
-                    valueFrom:
-                      secretKeyRef:
-                        name: vault-gcp-creds
-                        key: gcp-creds.json
-                volumeMounts:
-                  - name: creds-volume
-                    mountPath: /vault/gcp-creds
-
-            # Mount the shared volume in the main Vault container.
-            extraVolumeMounts:
-              - name: creds-volume
-                mountPath: /vault/gcp-creds
+          extraEnvironmentVars:
+            GCP_PROJECT: "bleachdle-web"
+            GCP_REGION: "us-central1"
+            GOOGLE_APPLICATION_CREDENTIALS: "/vault/gcp-creds/gcp-creds.json"
+          extraVolumes:
+            - name: creds-volume
+              emptyDir: {}
+          initContainers:
+            - name: write-gcp-creds
+              image: busybox
+              command: ["sh", "-c", "echo \"$GCP_CREDS\" > /vault/gcp-creds/gcp-creds.json"]
+              env:
+                - name: GCP_CREDS
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-gcp-creds
+                      key: gcp-creds.json
+              volumeMounts:
+                - name: creds-volume
+                  mountPath: /vault/gcp-creds
+          extraVolumeMounts:
+            - name: creds-volume
+              mountPath: /vault/gcp-creds
 
   destination:
     name: bleachdle-ephemeral
