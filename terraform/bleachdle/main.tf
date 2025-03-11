@@ -29,7 +29,6 @@ terraform {
   required_version = ">= 1.0.0"
 }
 
-
 ###############################################################################
 # Google Provider
 ###############################################################################
@@ -38,9 +37,24 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
+###############################################################################
+# Ensure Required APIs Are Enabled
+###############################################################################
+resource "google_project_service" "container" {
+  project            = var.GCP_PROJECT
+  service            = "container.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "iam" {
+  project                  = var.GCP_PROJECT
+  service                  = "iam.googleapis.com"
+  disable_on_destroy       = false
+  disable_dependent_services = false
+}
 
 ###############################################################################
-# GKE: ephemeral cluster 
+# GKE: Ephemeral Cluster 
 ###############################################################################
 resource "google_container_cluster" "bleachdle_ephemeral" {
   name                     = "bleachdle-cluster"
@@ -61,7 +75,10 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
     }
   }
 
-
+  depends_on = [
+    google_project_service.container,
+    google_project_service.iam
+  ]
 }
 
 resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
@@ -94,9 +111,8 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
   ]
 }
 
-
 ###############################################################################
-# K8S & HELM providers
+# K8S & HELM Providers
 ###############################################################################
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
