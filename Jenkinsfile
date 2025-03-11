@@ -256,6 +256,9 @@ pipeline {
                             # create 'Monitoring' namespace if missing
                             kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
+                            kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/bundle.yaml
+
+
                         """
                     }
                 }
