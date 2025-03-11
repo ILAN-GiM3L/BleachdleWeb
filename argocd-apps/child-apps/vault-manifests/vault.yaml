@@ -63,7 +63,7 @@ spec:
         app.kubernetes.io/name: vault
     spec:
       serviceAccountName: vault-sa
-      # Init container to copy config from ConfigMap to PVC
+      # Init container to copy config from ConfigMap to the writable PVC
       initContainers:
         - name: copy-vault-config
           image: busybox
@@ -71,31 +71,18 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: vault-config-pv
+            - name: vault-config-pvc
               mountPath: /vault-config
-      volumes:
-        - name: config
-          configMap:
-            name: vault-config
-            items:
-              - key: vault.hcl
-                path: vault.hcl
-        - name: gcp-creds
-          secret:
-            secretName: vault-gcp-creds
-        - name: vault-config-pv
-          persistentVolumeClaim:
-            claimName: vault-config-pvc  # PVC to allow Vault to write its config data
       containers:
         - name: vault
-          image: "hashicorp/vault:1.14.1"
+          image: hashicorp/vault:1.14.1
           args: ["server", "-config=/vault-config/vault.hcl"]
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: "/etc/vault/gcp/gcp-creds.json"
           volumeMounts:
-            - name: vault-config-pv
-              mountPath: /vault-config   # Main container only mounts the PVC
+            - name: vault-config-pvc
+              mountPath: /vault-config
               readOnly: false
             - name: gcp-creds
               mountPath: /etc/vault/gcp
@@ -107,6 +94,16 @@ spec:
             capabilities:
               add:
                 - IPC_LOCK  # Allow Vault to lock memory
+      volumes:
+        - name: config
+          configMap:
+            name: vault-config
+            items:
+              - key: vault.hcl
+                path: vault.hcl
+        - name: gcp-creds
+          secret:
+            secretName: vault-gcp-creds
   volumeClaimTemplates:
     - metadata:
         name: data
@@ -117,7 +114,7 @@ spec:
           requests:
             storage: 10Gi
     - metadata:
-        name: vault-config-pvc  # Create PVC for /vault/config
+        name: vault-config-pvc  # This claim will automatically generate PVCs named vault-config-pvc-<pod>
       spec:
         accessModes: [ "ReadWriteOnce" ]
         storageClassName: "standard-rwo"   # Ensure this points to your correct storage class
