@@ -37,8 +37,8 @@ data:
     # HA Storage using Raft
     storage "raft" {
       path            = "/vault/data"
-      node_id         = "vault-{{ .Release.Name }}-{{ .Pod.Name }}"  # Dynamic node_id using Pod name
-      cluster_address = "http://vault-0.vault-ha.vault.svc.cluster.local:8201"  # Use stable DNS name for cluster address
+      node_id         = "vault-{{ .Release.Name }}-{{ .Pod.Name }}"
+      cluster_address = "http://vault-0.vault-ha.vault.svc.cluster.local:8201"
     }
 ---
 ########################################
@@ -63,42 +63,46 @@ spec:
         app.kubernetes.io/name: vault
     spec:
       serviceAccountName: vault-sa
+      # Init container to copy config from ConfigMap to PVC
+      initContainers:
+        - name: copy-vault-config
+          image: busybox
+          command: ["sh", "-c", "cp /config/vault.hcl /vault-config/ && chmod 644 /vault-config/vault.hcl"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: vault-config-pv
+              mountPath: /vault-config
       volumes:
-        # Mount the Vault configuration from the ConfigMap (read-only for vault.hcl file)
         - name: config
           configMap:
             name: vault-config
             items:
               - key: vault.hcl
                 path: vault.hcl
-        # Mount the secret containing GCP credentials
         - name: gcp-creds
           secret:
             secretName: vault-gcp-creds
-        # PVC for /vault/config with read-write access
         - name: vault-config-pv
           persistentVolumeClaim:
             claimName: vault-config-pvc  # PVC to allow Vault to write its config data
       containers:
         - name: vault
           image: "hashicorp/vault:1.14.1"
-          args: ["server", "-config=/vault/config/vault.hcl"]
+          args: ["server", "-config=/vault-config/vault.hcl"]
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: "/etc/vault/gcp/gcp-creds.json"
           volumeMounts:
-            - name: config
-              mountPath: /vault/config/vault.hcl
-              readOnly: true  # Mount only the vault.hcl file from ConfigMap, not the entire config directory
             - name: vault-config-pv
-              mountPath: /vault/config   # Mount PVC for read-write access to /vault/config
+              mountPath: /vault-config   # Main container only mounts the PVC
               readOnly: false
             - name: gcp-creds
               mountPath: /etc/vault/gcp
               readOnly: true
             - name: data
               mountPath: /vault/data
-              readOnly: false  # Ensure this is set to false for write access
+              readOnly: false
           securityContext:
             capabilities:
               add:
@@ -113,14 +117,13 @@ spec:
           requests:
             storage: 10Gi
     - metadata:
-        name: vault-config-pv  # Create PVC for /vault/config
+        name: vault-config-pvc  # Create PVC for /vault/config
       spec:
         accessModes: [ "ReadWriteOnce" ]
         storageClassName: "standard-rwo"   # Ensure this points to your correct storage class
         resources:
           requests:
             storage: 10Gi  # Adjust as needed
-            
 ---
 ########################################
 # 4) Service to Expose Vault
