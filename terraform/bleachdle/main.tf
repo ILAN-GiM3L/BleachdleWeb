@@ -38,19 +38,27 @@ provider "google" {
 }
 
 ###############################################################################
-# Ensure Required APIs Are Enabled
+# Ensure Required APIs Are Enabled (Prevent Destroy)
 ###############################################################################
 resource "google_project_service" "container" {
   project            = var.GCP_PROJECT
   service            = "container.googleapis.com"
   disable_on_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_project_service" "iam" {
-  project                  = var.GCP_PROJECT
-  service                  = "iam.googleapis.com"
-  disable_on_destroy       = false
+  project                    = var.GCP_PROJECT
+  service                    = "iam.googleapis.com"
+  disable_on_destroy         = false
   disable_dependent_services = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 ###############################################################################
