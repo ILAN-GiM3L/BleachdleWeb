@@ -1,4 +1,9 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -13,7 +18,7 @@ spec:
     helm:
       values: |
         namespace:
-          create: true  # Creates the 'monitoring' namespace if not already created
+          create: true
         server:
           global:
             scrape_interval: 15s
@@ -32,14 +37,17 @@ spec:
               scrape_interval: 10s
               metrics_path: '/metrics'
               static_configs:
-                - targets: ['bleachdle-service.default.svc.cluster.local:5000']  # Using the Bleachdle service name to scrape metrics
+                - targets: ['bleachdle-service.default.svc.cluster.local:5000']
         alertmanager:
           enabled: true
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
         rbac:
           create: true
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring  # Ensures Prometheus is deployed to the monitoring namespace
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
@@ -59,7 +67,7 @@ spec:
     helm:
       values: |
         namespace:
-          create: true  # Creates the 'monitoring' namespace if not already created
+          create: true
         loki:
           enabled: true
           service:
@@ -70,10 +78,10 @@ spec:
           extraScrapeConfigs:
             - job_name: 'bleachdle-app-logs'
               static_configs:
-                - targets: ['bleachdle-service.default.svc.cluster.local:5000']  # Use Bleachdle service for logs scraping
+                - targets: ['bleachdle-service.default.svc.cluster.local:5000']
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring  # Ensures Loki is deployed to the monitoring namespace
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
@@ -93,12 +101,15 @@ spec:
     helm:
       values: |
         namespace:
-          create: true  # Creates the 'monitoring' namespace if not already created
+          create: true
         grafana:
           enabled: true
           adminPassword: 'admin'
           service:
-            type: LoadBalancer  # Exposes Grafana via a LoadBalancer
+            type: LoadBalancer
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
           ingress:
             enabled: true
             annotations:
@@ -111,14 +122,14 @@ spec:
                 - name: Prometheus
                   type: prometheus
                   access: proxy
-                  url: http://prometheus-server.monitoring.svc.cluster.local  # Prometheus service in the monitoring namespace
+                  url: http://prometheus-server.monitoring.svc.cluster.local
                 - name: Loki
                   type: loki
                   access: proxy
-                  url: http://loki.monitoring.svc.cluster.local  # Loki service in the monitoring namespace
+                  url: http://loki.monitoring.svc.cluster.local
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring  # Ensures Grafana is deployed to the monitoring namespace
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
