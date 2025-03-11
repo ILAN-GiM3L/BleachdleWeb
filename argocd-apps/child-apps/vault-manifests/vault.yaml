@@ -37,8 +37,8 @@ data:
     # HA Storage using Raft
     storage "raft" {
       path            = "/vault/data"
-      node_id         = "vault-0"
-      cluster_address = "http://vault-0.vault-ha:8201"  # Add the cluster address here
+      node_id         = "vault-{{ .Release.Name }}-{{ .Pod.Name }}"  # Dynamic node_id using Pod name
+      cluster_address = "http://vault-{{ .Release.Name }}-{{ .Pod.Name }}:8201"  # Use dynamic pod name in the cluster address
     }
 ---
 ########################################
@@ -66,6 +66,18 @@ spec:
         app.kubernetes.io/name: vault
     spec:
       serviceAccountName: vault-sa
+      volumes:
+        # Mount the Vault configuration from the ConfigMap
+        - name: config
+          configMap:
+            name: vault-config
+            items:
+              - key: vault.hcl
+                path: vault.hcl
+        # Mount the secret containing GCP credentials
+        - name: gcp-creds
+          secret:
+            secretName: vault-gcp-creds
       containers:
         - name: vault
           image: "hashicorp/vault:1.14.1"
@@ -95,13 +107,6 @@ spec:
         resources:
           requests:
             storage: 10Gi
-  volumes:
-    - name: config
-      configMap:
-        name: vault-config  # Referencing the ConfigMap that contains the Vault config
-    - name: gcp-creds
-      secret:
-        secretName: vault-gcp-creds  # Referencing the Secret that contains GCP credentials
 
 ---
 ########################################
