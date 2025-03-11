@@ -38,7 +38,7 @@ data:
     storage "raft" {
       path            = "/vault/data"
       node_id         = "vault-{{ .Release.Name }}-{{ .Pod.Name }}"  # Dynamic node_id using Pod name
-      cluster_address = "http://vault-0.vault-ha:8201"  # Use stable DNS name for cluster address
+      cluster_address = "http://vault-0.vault-ha.vault.svc.cluster.local:8201"  # Use stable DNS name for cluster address
     }
 ---
 ########################################
@@ -64,7 +64,7 @@ spec:
     spec:
       serviceAccountName: vault-sa
       volumes:
-        # Mount the Vault configuration from the ConfigMap
+        # Mount the Vault configuration from the ConfigMap (read-only)
         - name: config
           configMap:
             name: vault-config
@@ -85,7 +85,10 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /vault/config
-              readOnly: false  # Ensure this is set to false for write access
+              readOnly: true  # ConfigMap should remain read-only
+            - name: vault-config-pv
+              mountPath: /vault/config   # Mount the PVC here for read-write
+              readOnly: false           # This must be read-write for Vault to modify
             - name: gcp-creds
               mountPath: /etc/vault/gcp
               readOnly: true
@@ -105,6 +108,15 @@ spec:
         resources:
           requests:
             storage: 10Gi
+    - metadata:
+        name: vault-config-pv  # Create PVC for /vault/config
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "standard-rwo"   # Ensure this points to your correct storage class
+        resources:
+          requests:
+            storage: 10Gi  # Adjust as needed
+
 
 ---
 ########################################
