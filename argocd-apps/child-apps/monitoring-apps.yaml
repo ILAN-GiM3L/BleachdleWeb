@@ -1,9 +1,4 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
----
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -17,8 +12,6 @@ spec:
     path: "charts/prometheus"
     helm:
       values: |
-        namespace:
-          create: true
         server:
           global:
             scrape_interval: 15s
@@ -66,8 +59,6 @@ spec:
     path: "charts/loki"
     helm:
       values: |
-        namespace:
-          create: true
         loki:
           enabled: true
           service:
@@ -100,13 +91,11 @@ spec:
     path: "charts/grafana"
     helm:
       values: |
-        namespace:
-          create: true
         grafana:
           enabled: true
           adminPassword: 'admin'
           service:
-            type: LoadBalancer
+            type: LoadBalancer  # Exposes Grafana externally
           readinessProbe:
             initialDelaySeconds: 60
             periodSeconds: 10

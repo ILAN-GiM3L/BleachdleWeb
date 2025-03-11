@@ -243,6 +243,25 @@ pipeline {
             }
         }
 
+        stage('Prepare ephemeral cluster for Monitoring') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        sh """
+                            cd terraform/bleachdle
+                            export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
+                            gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
+                            gcloud container clusters get-credentials bleachdle-cluster --region "${GCP_REGION}"
+
+                            # create 'Monitoring' namespace if missing
+                            kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Register Bleachdle Ephemeral Cluster in ArgoCD') {
             steps {
                 script {
