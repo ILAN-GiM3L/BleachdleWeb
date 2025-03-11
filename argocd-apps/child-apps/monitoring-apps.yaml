@@ -54,9 +54,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://github.com/grafana/helm-charts.git"
-    targetRevision: "main"
-    path: "charts/loki"
+    repoURL: "https://grafana.github.io/helm-charts"
+    targetRevision: "2.10.1"   # Specify the chart version
+    path: "loki-stack"        # Update path to reflect the new chart location
     helm:
       values: |
         loki:
@@ -97,8 +97,15 @@ spec:
           service:
             type: LoadBalancer  # Exposes Grafana externally
           readinessProbe:
-            initialDelaySeconds: 60
+            initialDelaySeconds: 300  # Increased delay to allow migrations/startup to complete
             periodSeconds: 10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
           ingress:
             enabled: true
             annotations:
@@ -123,3 +130,4 @@ spec:
     automated:
       prune: true
       selfHeal: true
+
