@@ -44,6 +44,9 @@ data:
 ########################################
 # 3) StatefulSet: Vault in HA Mode
 ########################################
+########################################
+# 3) StatefulSet: Vault in HA Mode
+########################################
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -92,6 +95,14 @@ spec:
         resources:
           requests:
             storage: 10Gi
+  volumes:
+    - name: config
+      configMap:
+        name: vault-config  # Referencing the ConfigMap that contains the Vault config
+    - name: gcp-creds
+      secret:
+        secretName: vault-gcp-creds  # Referencing the Secret that contains GCP credentials
+
 ---
 ########################################
 # 4) Service to Expose Vault
