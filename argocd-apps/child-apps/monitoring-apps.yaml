@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/prometheus-community/helm-charts.git"
+    targetRevision: "main"
+    path: "charts/prometheus"
+  destination:
+    name: bleachdle-ephemeral
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/grafana/helm-charts.git"
+    targetRevision: "main"
+    path: "charts/loki"
+  destination:
+    name: bleachdle-ephemeral
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/grafana/helm-charts.git"
+    targetRevision: "main"
+    path: "charts/grafana"
+  destination:
+    name: bleachdle-ephemeral
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

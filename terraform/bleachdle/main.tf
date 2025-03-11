@@ -29,28 +29,6 @@ terraform {
   required_version = ">= 1.0.0"
 }
 
-###############################################################################
-# Enable Required GCP Services
-###############################################################################
-resource "google_project_service" "enable_container" {
-  project = var.GCP_PROJECT
-  service = "container.googleapis.com"
-}
-
-resource "google_project_service" "enable_iam" {
-  project = var.GCP_PROJECT
-  service = "iam.googleapis.com"
-}
-
-resource "google_project_service" "enable_iam_credentials" {
-  project = var.GCP_PROJECT
-  service = "iamcredentials.googleapis.com"
-}
-
-resource "google_project_service" "enable_kms" {
-  project = var.GCP_PROJECT
-  service = "cloudkms.googleapis.com"
-}
 
 ###############################################################################
 # Google Provider
@@ -60,32 +38,9 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
-###############################################################################
-# KMS: Key Ring & Crypto Key
-###############################################################################
-resource "google_kms_key_ring" "vault_key_ring" {
-  name     = "vault-key-ring"
-  location = var.GCP_REGION
-
-  # Make sure KMS API is enabled before creating the Key Ring
-  depends_on = [
-    google_project_service.enable_kms
-  ]
-}
-
-resource "google_kms_crypto_key" "vault_key" {
-  name            = "vault-key"
-  key_ring        = google_kms_key_ring.vault_key_ring.id
-  rotation_period = "100000s"
-  purpose         = "ENCRYPT_DECRYPT"
-
-  depends_on = [
-    google_kms_key_ring.vault_key_ring
-  ]
-}
 
 ###############################################################################
-# GKE: ephemeral cluster w/ Workload Identity
+# GKE: ephemeral cluster 
 ###############################################################################
 resource "google_container_cluster" "bleachdle_ephemeral" {
   name                     = "bleachdle-cluster"
@@ -106,17 +61,7 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
     }
   }
 
-  # Enable Workload Identity
-  workload_identity_config {
-    workload_pool = "${var.GCP_PROJECT}.svc.id.goog"
-  }
 
-  # Ensure container/IAM APIs are enabled before cluster creation
-  depends_on = [
-    google_project_service.enable_container,
-    google_project_service.enable_iam,
-    google_project_service.enable_iam_credentials
-  ]
 }
 
 resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
@@ -146,60 +91,6 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 
   depends_on = [
     google_container_cluster.bleachdle_ephemeral
-  ]
-}
-
-###############################################################################
-# Workload Identity Binding
-###############################################################################
-# Binds bleachdle-sa (K8s) -> terraform-admin GCP SA for impersonation
-###############################################################################
-resource "google_service_account_iam_binding" "allow_bleachdle_sa_impersonation" {
-  service_account_id = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
-  role               = "roles/iam.workloadIdentityUser"
-  members = [
-    "serviceAccount:${var.GCP_PROJECT}.svc.id.goog[default/bleachdle-sa]",
-  ]
-
-  # Wait until the cluster identity pool is fully created
-  depends_on = [
-    google_container_cluster.bleachdle_ephemeral
-  ]
-}
-
-resource "google_service_account_iam_binding" "allow_vault_sa_impersonation" {
-  service_account_id = "projects/${var.GCP_PROJECT}/serviceAccounts/terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
-  role               = "roles/iam.workloadIdentityUser"
-  members = [
-    "serviceAccount:${var.GCP_PROJECT}.svc.id.goog[vault/vault-sa]",
-  ]
-  depends_on = [
-    google_container_cluster.bleachdle_ephemeral
-  ]
-}
-
-
-###############################################################################
-# KMS IAM: let terraform-admin@... do KMS
-###############################################################################
-resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_permissions" {
-  crypto_key_id = google_kms_crypto_key.vault_key.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
-
-  depends_on = [
-    google_kms_crypto_key.vault_key
-  ]
-}
-
-# If you need broader KMS privileges, uncomment & update:
-resource "google_kms_crypto_key_iam_member" "bleachdle_sa_kms_admin_permissions" {
-  crypto_key_id = google_kms_crypto_key.vault_key.id
-  role          = "roles/cloudkms.admin"
-  member        = "serviceAccount:terraform-admin@${var.GCP_PROJECT}.iam.gserviceaccount.com"
-
-  depends_on = [
-    google_kms_crypto_key.vault_key
   ]
 }
 

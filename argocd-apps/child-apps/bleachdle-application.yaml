@@ -1,4 +1,3 @@
-# argocd-apps/bleachdle-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,25 +8,11 @@ spec:
   source:
     repoURL: "https://github.com/ILAN-GiM3L/BleachdleWeb.git"
     targetRevision: "main"
-    path: "helm"
+    path: "helm/bleachdle"
     helm:
       releaseName: bleachdle
-      values: |
-        replicaCount: 1
-        image:
-          repository: ilangimel/bleachdle-web-app
-          tag: latest
-        service:
-          type: LoadBalancer
-          port: 5000
-          targetPort: 5000
-          nodePort: 32000
-        vault:
-          role: "bleachdle-role"
-          secretPath: "bleach/data/app"
-          skipVerify: true
   destination:
-    name: bleachdle-ephemeral  # ephemeral cluster
+    name: bleachdle-ephemeral  # destination cluster name from Terraform
     namespace: default
   syncPolicy:
     automated:

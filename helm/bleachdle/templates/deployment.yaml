@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bleachdle.fullname" . }}-deployment
+  labels:
+    app: {{ include "bleachdle.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "bleachdle.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "bleachdle.name" . }}
+    spec:
+      containers:
+        - name: {{ include "bleachdle.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.config.DB_HOST | quote }}
+            - name: DB_NAME
+              value: {{ .Values.config.DB_NAME | quote }}
+            - name: API_URL
+              value: {{ .Values.config.API_URL | quote }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bleachdle.fullname" . }}-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bleachdle.fullname" . }}-secrets
+                  key: DB_PASSWORD

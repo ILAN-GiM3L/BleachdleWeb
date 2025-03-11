@@ -1,0 +1,21 @@
+replicaCount: 1
+
+image:
+  repository: ilangimel/bleachdle-web-app
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 5000
+  targetPort: 5000
+  nodePort: 32000
+
+config:
+  DB_HOST: "35.246.242.114"
+  DB_NAME: "Bleach_DB"
+  API_URL: "https://bleachdle-web.oa.r.appspot.com"
+
+secrets:
+  DB_USER: "cm9vdA=="      # base64 encoded 'root'
+  DB_PASSWORD: "R2V2ZXJZb3plbTEwMDcyMDAz"
