@@ -95,7 +95,7 @@ spec:
         name: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: ""   # Set this if you use a specific storage class
+        storageClassName: "standard"   # Set this if you use a specific storage class
         resources:
           requests:
             storage: 10Gi
