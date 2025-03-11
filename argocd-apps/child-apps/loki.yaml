@@ -1,0 +1,50 @@
+# argocd-apps/child-apps/loki.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://grafana.github.io/helm-charts"
+    chart: loki-stack
+    # This version was in your old Chart.yaml dependency. Adjust if you need a different version.
+    targetRevision: "2.10.1"
+    helm:
+      values: |
+        loki:
+          enabled: true
+          # You can override any additional config here if you want.
+        promtail:
+          enabled: true
+          # Optionally tweak Promtail config, for example:
+          config:
+            server:
+              log_level: info
+            positions:
+              filename: /var/log/positions.yaml
+            clients:
+              - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+            scrape_configs:
+              - job_name: kubernetes
+                kubernetes_sd_configs:
+                  - role: pod
+                relabel_configs:
+                  # Example relabel to pick container logs
+                  - source_labels: [__meta_kubernetes_pod_label_app]
+                    action: keep
+                    regex: bleachdle
+                  - source_labels: [__meta_kubernetes_pod_node_name]
+                    target_label: nodename
+                  - source_labels: [__meta_kubernetes_namespace]
+                    target_label: namespace
+                  - source_labels: [__meta_kubernetes_pod_name]
+                    target_label: pod
+  destination:
+    name: bleachdle-ephemeral
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

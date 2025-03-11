@@ -1,0 +1,106 @@
+# argocd-apps/child-apps/dashboards/flask-dashboard.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cpu-memory-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  cpu-memory-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "graphTooltip": 0,
+      "id": null,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 80 },
+                  { "color": "red",   "value": 90 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "id": 1,
+          "options": {
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "expr": "python_app_cpu_percent",
+              "format": "time_series",
+              "refId": "A"
+            }
+          ],
+          "title": "CPU Usage",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 80 },
+                  { "color": "red",   "value": 90 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "id": 2,
+          "options": {
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "expr": "python_app_memory_percent",
+              "format": "time_series",
+              "refId": "B"
+            }
+          ],
+          "title": "Memory Usage",
+          "type": "gauge"
+        }
+      ],
+      "refresh": "5m",
+      "schemaVersion": 40,
+      "time": { "from": "now-30m", "to": "now" },
+      "title": "CPU and Memory Dashboard",
+      "uid": "cpu-mem-dash-001",
+      "version": 2
+    }

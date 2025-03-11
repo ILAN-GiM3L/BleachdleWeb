@@ -1,0 +1,14 @@
+# argocd-apps/child-apps/prometheus-additional-scrape-configs.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: additional-scrape-configs
+  namespace: monitoring
+stringData:
+  additionalScrapeConfigs.yaml: |
+    - job_name: 'bleachdle-app'
+      scrape_interval: 10s
+      metrics_path: /metrics
+      scheme: http
+      static_configs:
+        - targets: ['bleachdle-service.default.svc.cluster.local:5000']
