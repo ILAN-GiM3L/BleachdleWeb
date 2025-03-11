@@ -38,12 +38,9 @@ data:
     storage "raft" {
       path            = "/vault/data"
       node_id         = "vault-{{ .Release.Name }}-{{ .Pod.Name }}"  # Dynamic node_id using Pod name
-      cluster_address = "http://vault-{{ .Release.Name }}-{{ .Pod.Name }}:8201"  # Use dynamic pod name in the cluster address
+      cluster_address = "http://vault-0.vault-ha:8201"  # Use stable DNS name for cluster address
     }
 ---
-########################################
-# 3) StatefulSet: Vault in HA Mode
-########################################
 ########################################
 # 3) StatefulSet: Vault in HA Mode
 ########################################
@@ -94,6 +91,7 @@ spec:
               readOnly: true
             - name: data
               mountPath: /vault/data
+              readOnly: false  # Ensure this is set to false for write access
           securityContext:
             capabilities:
               add:
@@ -103,7 +101,7 @@ spec:
         name: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "standard"   # Ensure this points to your correct storage class
+        storageClassName: "standard-rwo"   # Ensure this points to your correct storage class
         resources:
           requests:
             storage: 10Gi
