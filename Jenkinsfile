@@ -190,58 +190,58 @@ pipeline {
             }
         }
 
-        // stage('Destroy Old Bleachdle Cluster') {
-        //     steps {
-        //         script {
-        //             withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-        //                 dir("terraform/bleachdle") {
-        //                     sh """
-        //                         echo "[Bleachdle] Checking if 'bleachdle-cluster' exists..."
-        //                         export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
+        stage('Destroy Old Bleachdle Cluster') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        dir("terraform/bleachdle") {
+                            sh """
+                                echo "[Bleachdle] Checking if 'bleachdle-cluster' exists..."
+                                export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
                                 
-        //                         gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
-        //                         gcloud config set project "${GCP_PROJECT}"
-        //                         terraform init
+                                gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
+                                gcloud config set project "${GCP_PROJECT}"
+                                terraform init
                                 
-        //                         set +e
-        //                         gcloud container clusters describe bleachdle-cluster --region "${GCP_REGION}" > /dev/null 2>&1
-        //                         EPH_EXISTS=\$?
-        //                         set -e
+                                set +e
+                                gcloud container clusters describe bleachdle-cluster --region "${GCP_REGION}" > /dev/null 2>&1
+                                EPH_EXISTS=\$?
+                                set -e
                                 
-        //                         if [ \$EPH_EXISTS -eq 0 ]; then
-        //                           echo "[Bleachdle] Found 'bleachdle-cluster'. Destroying..."
-        //                           terraform destroy -auto-approve || true
-        //                         else
-        //                           echo "[Bleachdle] 'bleachdle-cluster' NOT found. Skipping."
-        //                         fi
-        //                     """
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                                if [ \$EPH_EXISTS -eq 0 ]; then
+                                  echo "[Bleachdle] Found 'bleachdle-cluster'. Destroying..."
+                                  terraform destroy -auto-approve || true
+                                else
+                                  echo "[Bleachdle] 'bleachdle-cluster' NOT found. Skipping."
+                                fi
+                            """
+                        }
+                    }
+                }
+            }
+        }
 
-        // stage('Create Bleachdle Ephemeral Cluster') {
-        //     steps {
-        //         script {
-        //             withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
-        //                 dir("terraform/bleachdle") {
-        //                     sh """
-        //                         echo "[Bleachdle] Creating ephemeral cluster..."
-        //                         export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
+        stage('Create Bleachdle Ephemeral Cluster') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        dir("terraform/bleachdle") {
+                            sh """
+                                echo "[Bleachdle] Creating ephemeral cluster..."
+                                export GOOGLE_APPLICATION_CREDENTIALS="${GCP_CREDENTIALS_FILE}"
                                 
-        //                         gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
-        //                         gcloud config set project "${GCP_PROJECT}"
+                                gcloud auth activate-service-account --key-file="${GCP_CREDENTIALS_FILE}"
+                                gcloud config set project "${GCP_PROJECT}"
                                 
-        //                         terraform init
-        //                         terraform plan -out=tfplan
-        //                         terraform apply -auto-approve tfplan
-        //                     """
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                                terraform init
+                                terraform plan -out=tfplan
+                                terraform apply -auto-approve tfplan
+                            """
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Register Bleachdle Ephemeral Cluster in ArgoCD') {
             steps {
