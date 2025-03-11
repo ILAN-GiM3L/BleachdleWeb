@@ -30,6 +30,29 @@ terraform {
 }
 
 ###############################################################################
+# Enable Required GCP Services
+###############################################################################
+resource "google_project_service" "enable_container" {
+  project = var.GCP_PROJECT
+  service = "container.googleapis.com"
+}
+
+resource "google_project_service" "enable_iam" {
+  project = var.GCP_PROJECT
+  service = "iam.googleapis.com"
+}
+
+resource "google_project_service" "enable_iam_credentials" {
+  project = var.GCP_PROJECT
+  service = "iamcredentials.googleapis.com"
+}
+
+resource "google_project_service" "enable_kms" {
+  project = var.GCP_PROJECT
+  service = "cloudkms.googleapis.com"
+}
+
+###############################################################################
 # Google Provider
 ###############################################################################
 provider "google" {
@@ -38,31 +61,7 @@ provider "google" {
 }
 
 ###############################################################################
-# Ensure Required APIs Are Enabled (Prevent Destroy)
-###############################################################################
-resource "google_project_service" "container" {
-  project            = var.GCP_PROJECT
-  service            = "container.googleapis.com"
-  disable_on_destroy = false
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "google_project_service" "iam" {
-  project                    = var.GCP_PROJECT
-  service                    = "iam.googleapis.com"
-  disable_on_destroy         = false
-  disable_dependent_services = false
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-###############################################################################
-# GKE: Ephemeral Cluster 
+# GKE: ephemeral cluster
 ###############################################################################
 resource "google_container_cluster" "bleachdle_ephemeral" {
   name                     = "bleachdle-cluster"
@@ -84,8 +83,9 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
   }
 
   depends_on = [
-    google_project_service.container,
-    google_project_service.iam
+    google_project_service.enable_container,
+    google_project_service.enable_iam,
+    google_project_service.enable_iam_credentials
   ]
 }
 

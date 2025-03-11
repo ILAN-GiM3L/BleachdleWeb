@@ -1,3 +1,4 @@
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,9 +10,36 @@ spec:
     repoURL: "https://github.com/prometheus-community/helm-charts.git"
     targetRevision: "main"
     path: "charts/prometheus"
+    helm:
+      values: |
+        namespace:
+          create: true  # Creates the 'monitoring' namespace if not already created
+        server:
+          global:
+            scrape_interval: 15s
+          service:
+            type: ClusterIP
+            port: 9090
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          additionalScrapeConfigs:
+            - job_name: 'bleachdle-app'
+              scrape_interval: 10s
+              metrics_path: '/metrics'
+              static_configs:
+                - targets: ['bleachdle-service.default.svc.cluster.local:5000']  # Using the Bleachdle service name to scrape metrics
+        alertmanager:
+          enabled: true
+        rbac:
+          create: true
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring
+    namespace: monitoring  # Ensures Prometheus is deployed to the monitoring namespace
   syncPolicy:
     automated:
       prune: true
@@ -28,9 +56,24 @@ spec:
     repoURL: "https://github.com/grafana/helm-charts.git"
     targetRevision: "main"
     path: "charts/loki"
+    helm:
+      values: |
+        namespace:
+          create: true  # Creates the 'monitoring' namespace if not already created
+        loki:
+          enabled: true
+          service:
+            type: ClusterIP
+            port: 3100
+          rbac:
+            create: true
+          extraScrapeConfigs:
+            - job_name: 'bleachdle-app-logs'
+              static_configs:
+                - targets: ['bleachdle-service.default.svc.cluster.local:5000']  # Use Bleachdle service for logs scraping
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring
+    namespace: monitoring  # Ensures Loki is deployed to the monitoring namespace
   syncPolicy:
     automated:
       prune: true
@@ -47,9 +90,35 @@ spec:
     repoURL: "https://github.com/grafana/helm-charts.git"
     targetRevision: "main"
     path: "charts/grafana"
+    helm:
+      values: |
+        namespace:
+          create: true  # Creates the 'monitoring' namespace if not already created
+        grafana:
+          enabled: true
+          adminPassword: 'admin'
+          service:
+            type: LoadBalancer  # Exposes Grafana via a LoadBalancer
+          ingress:
+            enabled: true
+            annotations:
+              kubernetes.io/ingress.class: "nginx"
+              nginx.ingress.kubernetes.io/rewrite-target: /
+          dataSources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  access: proxy
+                  url: http://prometheus-server.monitoring.svc.cluster.local  # Prometheus service in the monitoring namespace
+                - name: Loki
+                  type: loki
+                  access: proxy
+                  url: http://loki.monitoring.svc.cluster.local  # Loki service in the monitoring namespace
   destination:
     name: bleachdle-ephemeral
-    namespace: monitoring
+    namespace: monitoring  # Ensures Grafana is deployed to the monitoring namespace
   syncPolicy:
     automated:
       prune: true
