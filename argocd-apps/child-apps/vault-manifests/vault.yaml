@@ -36,8 +36,9 @@ data:
 
     # HA Storage using Raft
     storage "raft" {
-      path    = "/vault/data"
-      node_id = "vault-0"
+      path            = "/vault/data"
+      node_id         = "vault-0"
+      cluster_address = "http://vault-0.vault-ha:8201"  # Add the cluster address here
     }
 ---
 ########################################
@@ -61,20 +62,7 @@ spec:
       labels:
         app.kubernetes.io/name: vault
     spec:
-      # Use vault-sa (in vault namespace)
       serviceAccountName: vault-sa
-      volumes:
-        # Mount the Vault configuration from the ConfigMap
-        - name: config
-          configMap:
-            name: vault-config
-            items:
-              - key: vault.hcl
-                path: vault.hcl
-        # Mount the secret containing GCP credentials
-        - name: gcp-creds
-          secret:
-            secretName: vault-gcp-creds
       containers:
         - name: vault
           image: "hashicorp/vault:1.14.1"
@@ -85,17 +73,22 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /vault/config
+              readOnly: false  # Ensure this is set to false for write access
             - name: gcp-creds
               mountPath: /etc/vault/gcp
               readOnly: true
             - name: data
               mountPath: /vault/data
+          securityContext:
+            capabilities:
+              add:
+                - IPC_LOCK  # Allow Vault to lock memory
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "standard"   # Set this if you use a specific storage class
+        storageClassName: "standard"   # Ensure this points to your correct storage class
         resources:
           requests:
             storage: 10Gi
