@@ -64,7 +64,7 @@ spec:
     spec:
       serviceAccountName: vault-sa
       volumes:
-        # Mount the Vault configuration from the ConfigMap (read-only)
+        # Mount the Vault configuration from the ConfigMap (read-only for vault.hcl file)
         - name: config
           configMap:
             name: vault-config
@@ -75,6 +75,10 @@ spec:
         - name: gcp-creds
           secret:
             secretName: vault-gcp-creds
+        # PVC for /vault/config with read-write access
+        - name: vault-config-pv
+          persistentVolumeClaim:
+            claimName: vault-config-pvc  # PVC to allow Vault to write its config data
       containers:
         - name: vault
           image: "hashicorp/vault:1.14.1"
@@ -84,11 +88,11 @@ spec:
               value: "/etc/vault/gcp/gcp-creds.json"
           volumeMounts:
             - name: config
-              mountPath: /vault/config
-              readOnly: true  # ConfigMap should remain read-only
+              mountPath: /vault/config/vault.hcl
+              readOnly: true  # Mount only the vault.hcl file from ConfigMap, not the entire config directory
             - name: vault-config-pv
-              mountPath: /vault/config   # Mount the PVC here for read-write
-              readOnly: false           # This must be read-write for Vault to modify
+              mountPath: /vault/config   # Mount PVC for read-write access to /vault/config
+              readOnly: false
             - name: gcp-creds
               mountPath: /etc/vault/gcp
               readOnly: true
@@ -116,8 +120,7 @@ spec:
         resources:
           requests:
             storage: 10Gi  # Adjust as needed
-
-
+            
 ---
 ########################################
 # 4) Service to Expose Vault
