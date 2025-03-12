@@ -4,6 +4,7 @@
 resource "google_container_cluster" "argocd" {
   name                     = "argocd-cluster"
   location                 = var.GCP_REGION
+  node_locations           = ["us-central1-a"]
   remove_default_node_pool = true
   initial_node_count       = 1
 
