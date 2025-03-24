@@ -3,10 +3,11 @@ pipeline {
 
     environment {
         // Ensure the proper PATH is set so that gcloud, docker, etc. are available
-        PATH = "/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin:$PATH"
-        
-        GCP_PROJECT = 'bleachdle-web'
-        GCP_REGION  = 'us-central1'
+        // This adds our custom directories to the existing PATH
+        PATH+EXTRA = '/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin'
+
+        GCP_PROJECT = credentials('GCP_PROJECT')
+        GCP_REGION  = credentials('GCP_REGION')
 
         DOCKERHUB_REPO     = 'ilangimel/bleachdle-web-app'
         DOCKERHUB_USERNAME = credentials('DOCKERHUB_USERNAME')
@@ -15,11 +16,11 @@ pipeline {
         VERSION            = "${BUILD_NUMBER}"
         
         // For tests, if your app expects these env variables, you can set dummy values.
-        DB_HOST     = "35.246.242.114"
-        DB_USER     = "cm9vdA=="       // base64 for "test-user" if needed (or set plain text in tests)
-        DB_PASSWORD = "R2V2ZXJZb3plbTEwMDcyMDAz"       // base64 for "test-pass"
-        DB_NAME     =  "Bleach_DB"
-        API_URL     = "https://bleachdle-web.oa.r.appspot.com"
+        DB_HOST     = credentials('DB_HOST')
+        DB_USER     = credentials('DB_USER')     
+        DB_PASSWORD = credentials('DB_PASSWORD')      
+        DB_NAME     =  credentials('DB_NAME')
+        API_URL     = credentials('API_URL')
     }
 
     stages {
