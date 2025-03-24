@@ -4,7 +4,7 @@ pipeline {
     environment {
         // Ensure the proper PATH is set so that gcloud, docker, etc. are available
         // This adds our custom directories to the existing PATH
-        PATH+EXTRA = '/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin'
+        PATH = "/usr/local/bin:/opt/homebrew/bin:/Users/ilangimelfarb/Downloads/google-cloud-sdk/bin:${env.PATH}"
 
         GCP_PROJECT = credentials('GCP_PROJECT')
         GCP_REGION  = credentials('GCP_REGION')
