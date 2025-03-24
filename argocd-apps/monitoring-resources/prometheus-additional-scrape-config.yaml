@@ -11,4 +11,4 @@ stringData:
       metrics_path: /metrics
       scheme: http
       static_configs:
-        - targets: ['bleachdle-service.default.svc.cluster.local:5000']
+        - targets: ['bleachdle-bleachdle-service.default.svc.cluster.local:5000']
