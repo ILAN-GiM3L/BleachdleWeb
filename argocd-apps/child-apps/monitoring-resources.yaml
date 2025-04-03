@@ -13,9 +13,7 @@ spec:
     directory:
       recurse: true
   destination:
-    # The same cluster name you used for Grafana/Prometheus:
-    name: bleachdle-ephemeral
-    # The same namespace "monitoring"
+    server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
     automated:

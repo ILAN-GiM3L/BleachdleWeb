@@ -60,13 +60,15 @@ provider "google" {
   region  = var.GCP_REGION
 }
 
+data "google_client_config" "default" {}
+
 ###############################################################################
-# GKE: ephemeral cluster
+# Single GKE Cluster for everything (ArgoCD + Bleachdle)
 ###############################################################################
-resource "google_container_cluster" "bleachdle_ephemeral" {
+resource "google_container_cluster" "bleachdle" {
   name                     = "bleachdle-cluster"
   location                 = var.GCP_REGION
-  node_locations           = ["us-central1-a"]
+  node_locations           = [var.GCP_ZONE] # or "us-central1-a" if you prefer
   remove_default_node_pool = true
   initial_node_count       = 1
 
@@ -89,9 +91,9 @@ resource "google_container_cluster" "bleachdle_ephemeral" {
   ]
 }
 
-resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
-  name     = "bleachdle-ephemeral-nodes"
-  cluster  = google_container_cluster.bleachdle_ephemeral.name
+resource "google_container_node_pool" "bleachdle_nodes" {
+  name     = "bleachdle-nodes"
+  cluster  = google_container_cluster.bleachdle.name
   location = var.GCP_REGION
 
   autoscaling {
@@ -115,7 +117,7 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
   }
 
   depends_on = [
-    google_container_cluster.bleachdle_ephemeral
+    google_container_cluster.bleachdle
   ]
 }
 
@@ -123,35 +125,30 @@ resource "google_container_node_pool" "bleachdle_ephemeral_nodes" {
 # K8S & HELM Providers
 ###############################################################################
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
+  host                   = "https://${google_container_cluster.bleachdle.endpoint}"
   cluster_ca_certificate = base64decode(
-    google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate
+    google_container_cluster.bleachdle.master_auth[0].cluster_ca_certificate
   )
   token                  = data.google_client_config.default.access_token
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.bleachdle_ephemeral.endpoint}"
+    host                   = "https://${google_container_cluster.bleachdle.endpoint}"
     cluster_ca_certificate = base64decode(
-      google_container_cluster.bleachdle_ephemeral.master_auth[0].cluster_ca_certificate
+      google_container_cluster.bleachdle.master_auth[0].cluster_ca_certificate
     )
     token                  = data.google_client_config.default.access_token
   }
 }
 
 ###############################################################################
-# Data Source: google_client_config
-###############################################################################
-data "google_client_config" "default" {}
-
-###############################################################################
 # Outputs
 ###############################################################################
 output "bleachdle_cluster_endpoint" {
-  value = google_container_cluster.bleachdle_ephemeral.endpoint
+  value = google_container_cluster.bleachdle.endpoint
 }
 
 output "bleachdle_cluster_name" {
-  value = google_container_cluster.bleachdle_ephemeral.name
+  value = google_container_cluster.bleachdle.name
 }

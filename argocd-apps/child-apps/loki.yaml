@@ -42,7 +42,7 @@ spec:
                   - source_labels: [__meta_kubernetes_pod_name]
                     target_label: pod
   destination:
-    name: bleachdle-ephemeral
+    server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
     automated:

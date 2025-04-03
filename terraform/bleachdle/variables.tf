@@ -9,3 +9,9 @@ variable "GCP_REGION" {
   type        = string
   default     = "us-central1"
 }
+
+variable "GCP_ZONE" {
+  description = "Google Cloud Zone (e.g. us-central1-a)"
+  type        = string
+  default     = "us-central1-a"
+}

@@ -1,3 +1,4 @@
+# argocd-apps/child-apps/bleachdle-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -12,7 +13,7 @@ spec:
     helm:
       releaseName: bleachdle
   destination:
-    name: bleachdle-ephemeral  # destination cluster name from Terraform
+    server: https://kubernetes.default.svc  
     namespace: default
   syncPolicy:
     automated:

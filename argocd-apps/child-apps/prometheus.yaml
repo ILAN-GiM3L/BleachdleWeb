@@ -20,7 +20,7 @@ spec:
           createAdditionalScrapeConfigsSecret: true
           additionalScrapeConfigsSecret: additional-scrape-configs
   destination:
-    name: bleachdle-ephemeral
+    server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
     automated:

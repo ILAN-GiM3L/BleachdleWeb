@@ -51,7 +51,7 @@ spec:
             labelValue: "1"  # <-- Add this
             folder: /var/lib/grafana/dashboards
   destination:
-    name: bleachdle-ephemeral
+    server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
     automated:
