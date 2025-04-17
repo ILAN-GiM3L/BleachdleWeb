@@ -1,20 +1,19 @@
-{{- /*
-     ServiceMonitor picked up by kube‑prometheus‑stack.
-*/ -}}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "bleachdle.fullname" . }}-sm
+  
   labels:
-    release: prom-stack            # must match .Release.Name of the Prom stack
+    app.kubernetes.io/component: bleachdle
+  
 spec:
   selector:
     matchLabels:
       app: {{ include "bleachdle.name" . }}
   namespaceSelector:
-    matchNames: 
+    matchNames:
       - {{ .Release.Namespace }}
   endpoints:
-    - port: http                   # maps to servicePort name below
+    - port: http
       path: /metrics
       interval: 15s

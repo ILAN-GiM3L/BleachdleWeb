@@ -8,23 +8,29 @@ spec:
   source:
     repoURL: "https://prometheus-community.github.io/helm-charts"
     chart: kube-prometheus-stack
-    # 70.5.0 = latest (15 Apr 2025) :contentReference[oaicite:0]{index=0}
     targetRevision: "70.5.0"
     helm:
-      # Disable components you already have
       values: |
         grafana:
-          enabled: false        # we run Grafana separately
+          enabled: false
         alertmanager:
           enabled: true
+        prometheusOperator:
+          admissionWebhooks:
+            enabled: false
+            patch:
+              enabled: false
+          tls:
+            enabled: false
         prometheus:
           prometheusSpec:
+            serviceMonitorSelector: {}
+            serviceMonitorNamespaceSelector: {}
             serviceMonitorSelectorNilUsesHelmValues: false
           service:
-            type: LoadBalancer     # exposes :9090 externally
+            type: LoadBalancer
             port: 9090
             targetPort: 9090
-
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -32,3 +38,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - Replace=true
