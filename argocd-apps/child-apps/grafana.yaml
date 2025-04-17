@@ -20,11 +20,9 @@ spec:
             apiVersion: 1
             datasources:
               - name: Prometheus
-                uid: prometheus
                 type: prometheus
                 access: proxy
-                url: http://prometheus-server.monitoring.svc.cluster.local:80
-                isDefault: true
+                url: http://prom-stack-kube-prometheus-prometheus.monitoring.svc:9090
                 editable: false
               - name: Loki
                 type: loki

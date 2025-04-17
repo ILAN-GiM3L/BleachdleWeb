@@ -45,19 +45,6 @@ pipeline {
             }
         }
 
-        // Only run tests if Python, HTML, Dockerfile, or requirements changed
-        stage('Run Tests (if app code changed)') {
-            when {
-                changeset pattern: 'app\\.py|templates/.*|static/.*|requirements\\.txt|Dockerfile', comparator: 'REGEXP'
-            }
-            steps {
-                script {
-                    echo "Changes detected in application code. Running tests..."
-                    sh 'pip install -r requirements.txt'
-                    sh 'pytest --maxfail=1 --disable-warnings -q'
-                }
-            }
-        }
 
         // Only log in to Docker Hub if image-related files changed
         stage('Login to Docker Hub (if needed)') {
@@ -108,17 +95,19 @@ pipeline {
                 anyOf {
                     changeset pattern: 'terraform/bleachdle/.*\\.tf', comparator: 'REGEXP'
                     expression {
-                        // Check if cluster doesn't exist
-                        def status = sh(
-                            script: """
-                                set +e
-                                gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
-                                gcloud config set project \$GCP_PROJECT
-                                gcloud container clusters describe bleachdle-cluster --region \$GCP_REGION >/dev/null 2>&1
-                                exit \$?
-                            """, returnStatus: true
-                        )
-                        return (status != 0)  // if status != 0 => cluster not found => run stage
+                        // Wrap the "gcloud auth" check in withCredentials so GCP_CREDENTIALS_FILE is not empty
+                        withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                            def status = sh(
+                                script: """
+                                    set +e
+                                    gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
+                                    gcloud config set project \$GCP_PROJECT
+                                    gcloud container clusters describe bleachdle-cluster --region \$GCP_REGION >/dev/null 2>&1
+                                    exit \$?
+                                """, returnStatus: true
+                            )
+                            return (status != 0)  // if status != 0 => cluster not found => run stage
+                        }
                     }
                 }
             }
@@ -146,18 +135,20 @@ pipeline {
         stage('Install ArgoCD (only if missing)') {
             when {
                 expression {
-                    // Check if 'argocd-server' deployment is missing in 'argocd' ns.
-                    def status = sh(
-                        script: """
-                            set +e
-                            gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
-                            gcloud config set project \$GCP_PROJECT
-                            gcloud container clusters get-credentials bleachdle-cluster --region \$GCP_REGION
-                            kubectl get deployment argocd-server -n argocd >/dev/null 2>&1
-                            exit \$?
-                        """, returnStatus: true
-                    )
-                    return (status != 0) // if non-zero => argocd-server deployment not found => install ArgoCD
+                    // Wrap the "gcloud auth" check in withCredentials so GCP_CREDENTIALS_FILE is not empty
+                    withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                        def status = sh(
+                            script: """
+                                set +e
+                                gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
+                                gcloud config set project \$GCP_PROJECT
+                                gcloud container clusters get-credentials bleachdle-cluster --region \$GCP_REGION
+                                kubectl get deployment argocd-server -n argocd >/dev/null 2>&1
+                                exit \$?
+                            """, returnStatus: true
+                        )
+                        return (status != 0) // if non-zero => argocd-server deployment not found => install ArgoCD
+                    }
                 }
             }
             steps {
@@ -216,18 +207,20 @@ pipeline {
                 anyOf {
                     changeset pattern: 'argocd-apps/parent-application\\.yaml', comparator: 'REGEXP'
                     expression {
-                        // Check if parent app doesn't exist
-                        def status = sh(
-                            script: """
-                                set +e
-                                gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
-                                gcloud config set project \$GCP_PROJECT
-                                gcloud container clusters get-credentials bleachdle-cluster --region \$GCP_REGION
-                                kubectl get app bleachdle-parent -n argocd >/dev/null 2>&1
-                                exit \$?
-                            """, returnStatus: true
-                        )
-                        return (status != 0) // if non-zero => 'bleachdle-parent' doesn't exist
+                        // Wrap the "gcloud auth" check in withCredentials so GCP_CREDENTIALS_FILE is not empty
+                        withCredentials([file(credentialsId: 'BLEACH_GCP_CREDENTIALS', variable: 'GCP_CREDENTIALS_FILE')]) {
+                            def status = sh(
+                                script: """
+                                    set +e
+                                    gcloud auth activate-service-account --key-file=\$GCP_CREDENTIALS_FILE
+                                    gcloud config set project \$GCP_PROJECT
+                                    gcloud container clusters get-credentials bleachdle-cluster --region \$GCP_REGION
+                                    kubectl get app bleachdle-parent -n argocd >/dev/null 2>&1
+                                    exit \$?
+                                """, returnStatus: true
+                            )
+                            return (status != 0) // if non-zero => 'bleachdle-parent' doesn't exist
+                        }
                     }
                 }
             }

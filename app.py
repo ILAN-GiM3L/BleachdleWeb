@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+import time
 import mysql.connector
 import requests
 import os
@@ -8,6 +10,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+### PROMETHEUS >>>
+REQUEST_COUNT = Counter(
+    "bleachdle_request_total", "Total HTTP requests", ["method", "endpoint", "http_status"]
+)
+REQUEST_LATENCY = Histogram(
+    "bleachdle_request_latency_seconds", "Request latency", ["endpoint"]
+)
+### PROMETHEUS <<<
 
 # MySQL connection configuration for Google Cloud
 db_config = {
@@ -39,6 +50,26 @@ def get_todays_schrift():
     if response.status_code == 200:
         return response.json()
     return None
+
+
+### PROMETHEUS-ADD >>>
+@app.before_request
+def start_timer():
+    request.start_time = time.time()
+
+@app.after_request
+def record_metrics(response):
+    latency = time.time() - getattr(request, "start_time", time.time())
+    REQUEST_LATENCY.labels(request.path).observe(latency)
+    REQUEST_COUNT.labels(request.method, request.path, response.status_code).inc()
+    return response
+
+@app.route("/metrics")
+def metrics():
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+### PROMETHEUS-ADD <<<
+
+
 
 @app.route('/')
 def main_page():
